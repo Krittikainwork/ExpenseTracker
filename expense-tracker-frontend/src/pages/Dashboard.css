@@ -1,0 +1,354 @@
+/* ------------------------------
+   Global Styles
+--------------------------------*/
+body {
+  background: linear-gradient(135deg, #eef3ff 0%, #ffffff 100%);
+  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 0;
+  color: #333;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+  transition: all 0.2s ease-in-out;
+}
+
+/* ------------------------------
+   Dashboard Layout
+--------------------------------*/
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ------------------------------
+   Header Section
+--------------------------------*/
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(90deg, #1E63F8, #5b8dff);
+  color: white;
+  padding: 18px 40px;
+  box-shadow: 0 2px 15px rgba(30, 99, 248, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.header h2 {
+  margin: 0;
+  font-weight: 600;
+  font-size: 1.5rem;
+}
+
+.header span {
+  font-weight: 400;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+.logout-btn {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-weight: 500;
+  padding: 8px 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ------------------------------
+   Dashboard Content Area
+--------------------------------*/
+.dashboard-content {
+  display: flex;
+  gap: 28px;
+  padding: 40px 50px;
+}
+
+/* Main and Notifications sections */
+.main-section {
+  flex: 3;
+}
+
+.notifications-section {
+  flex: 1.2;
+}
+
+/* ------------------------------
+   Card Styles (Glass look)
+--------------------------------*/
+.card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(6px);
+  border-radius: 16px;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 28px;
+  margin-bottom: 30px;
+}
+
+.card h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #1E63F8;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.card p {
+  color: #777;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+}
+
+/* ------------------------------
+   Form Styling
+--------------------------------*/
+form input,
+form select {
+  display: block;
+  width: 100%;
+  margin: 8px 0 16px 0;
+  padding: 12px;
+  border: 1px solid #dce2f0;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  background-color: #f8faff;
+  transition: 0.3s;
+}
+
+form input:focus,
+form select:focus {
+  border-color: #1E63F8;
+  box-shadow: 0 0 6px rgba(30, 99, 248, 0.2);
+  background-color: #fff;
+}
+
+/* Submit Button */
+button {
+  background: linear-gradient(90deg, #1E63F8, #5b8dff);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 1rem;
+  border-radius: 10px;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: 0 3px 10px rgba(30, 99, 248, 0.25);
+}
+
+button:hover {
+  background: linear-gradient(90deg, #1752d9, #3a76ff);
+}
+
+/* ------------------------------
+   Expense Table Section
+--------------------------------*/
+.expenses-section h3 {
+  color: #1E63F8;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.expenses-section table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.expenses-section th,
+.expenses-section td {
+  padding: 14px 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  font-size: 0.95rem;
+}
+
+.expenses-section th {
+  background-color: #f5f7ff;
+  font-weight: 600;
+  color: #555;
+}
+
+.expenses-section tr:hover {
+  background-color: #f0f4ff;
+}
+
+/* Status Tags */
+.status {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-align: center;
+  display: inline-block;
+}
+
+.status.approved {
+  background: #d4edda;
+  color: #1f6b30;
+}
+
+.status.pending {
+  background: #fff3cd;
+  color: #8a6d1b;
+}
+
+.status.rejected {
+  background: #f8d7da;
+  color: #8b1c1c;
+}
+
+/* ------------------------------
+   Notifications Section
+--------------------------------*/
+.notifications-section h3 {
+  color: #1E63F8;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.notification-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+  border-left: 5px solid transparent;
+}
+
+.notification-card.approved {
+  border-left-color: #28a745;
+  background: #e9f9ef;
+}
+
+.notification-card.rejected {
+  border-left-color: #dc3545;
+  background: #fdeaea;
+}
+
+.notification-card h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.notification-card p {
+  font-size: 0.85rem;
+  color: #555;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* ------------------------------
+   Responsive Design
+--------------------------------*/
+@media (max-width: 1000px) {
+  .dashboard-content {
+    flex-direction: column;
+    padding: 25px;
+  }
+
+  .notifications-section {
+    order: -1;
+  }
+
+  .card {
+    padding: 20px;
+  }
+
+  .header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  button {
+    font-size: 0.95rem;
+  }
+}
+
+/* Notification Bell */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.notification-bell {
+  position: relative;
+  cursor: pointer;
+  color: white;
+  display: flex;
+  align-items: center;
+}
+
+.notification-bell:hover {
+  opacity: 0.9;
+}
+
+.notif-count {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  background-color: #ff4b5c;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 50%;
+  padding: 2px 6px;
+}
+
+/* Compact Logout Button */
+.logout-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logout-btn:hover {
+  opacity: 0.85;
+  transform: scale(1.05);
+}
+
+/* Colored Status Badges */
+.status {
+  padding: 6px 12px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: capitalize;
+}
+
+.status.approved {
+  background-color: #e9f9ee;
+  color: #198754;
+}
+
+.status.pending {
+  background-color: #fff6d9;
+  color: #856404;
+}
+
+.status.rejected {
+  background-color: #fdecea;
+  color: #dc3545;
+}

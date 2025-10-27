@@ -144,3 +144,4 @@ C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\refint\Ex
 C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\ExpenseTrackerAPI.pdb
 C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\ExpenseTrackerAPI.genruntimeconfig.cache
 C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\ref\ExpenseTrackerAPI.dll
+C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\ExpenseTrackerAPI.sourcelink.json
