@@ -39,16 +39,18 @@ namespace ExpenseTrackerAPI.Controllers
             if (category == null) return NotFound(new { code = "CATEGORY_NOT_FOUND" });
 
             var e = new Expense
-            {
-                EmployeeId = user.Id,
-                EmployeeName = user.FullName ?? user.Email ?? "Employee",
-                Title = req.Title,
-                Amount = req.Amount,
-                CategoryId = req.CategoryId,
-                Status = "Pending",
-                DateSubmitted = DateTime.UtcNow,
-                ExpenseDate = req.ExpenseDate.Date
-            };
+{
+    // ✅ Use the actual employee-entered EmployeeId field instead of Identity GUID
+    EmployeeId = user.EmployeeId ?? user.Id,  // fallback to GUID only if missing
+    EmployeeName = user.FullName ?? user.Email ?? "Employee",
+    Title = req.Title,
+    Amount = req.Amount,
+    CategoryId = req.CategoryId,
+    Status = "Pending",
+    DateSubmitted = DateTime.UtcNow,
+    ExpenseDate = req.ExpenseDate.Date
+};
+
             _db.Expenses.Add(e);
             await _db.SaveChangesAsync(ct);
 
@@ -60,10 +62,11 @@ namespace ExpenseTrackerAPI.Controllers
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> My(CancellationToken ct)
         {
-            var uid = _userManager.GetUserId(User);
+            var user = await _userManager.GetUserAsync(User);
+    if (user == null) return Unauthorized();
             var rows = await _db.Expenses
                 .Include(x => x.Category)
-                .Where(x => x.EmployeeId == uid)
+                .Where(x => x.EmployeeId == user.EmployeeId)
                 .OrderByDescending(x => x.DateSubmitted)
                 .Select(e => new
                 {
@@ -142,7 +145,9 @@ namespace ExpenseTrackerAPI.Controllers
 
             await _db.SaveChangesAsync(ct);
 
-            await _notify.CreateForUserAsync(expense.EmployeeId, $"Your expense \"{expense.Title}\" has been approved.", ct);
+            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.EmployeeId == expense.EmployeeId, ct);
+    if (user != null)
+        await _notify.CreateForUserAsync(user.Id, $"Your expense \"{expense.Title}\" has been approved.", ct);
             return Ok();
         }
 
@@ -162,7 +167,9 @@ namespace ExpenseTrackerAPI.Controllers
 
             await _db.SaveChangesAsync(ct);
 
-            await _notify.CreateForUserAsync(expense.EmployeeId, $"Your expense \"{expense.Title}\" has been rejected.", ct);
+            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.EmployeeId == expense.EmployeeId, ct);
+    if (user != null)
+        await _notify.CreateForUserAsync(user.Id, $"Your expense \"{expense.Title}\" has been rejected.", ct);
             return Ok();
         }
 
@@ -236,5 +243,6 @@ namespace ExpenseTrackerAPI.Controllers
             await _notify.CreateForRoleAsync("Manager", $"Admin commented on expense \"{expense.Title}\": {req.Comment}", ct);
             return Ok();
         }
+        
     }
 }

@@ -24,6 +24,7 @@ namespace ExpenseTrackerAPI.Data
             b.Entity<BudgetTransaction>().Property(x => x.AmountDeducted).HasColumnType("numeric(18,2)");
             b.Entity<BudgetTransaction>().Property(x => x.RemainingAfterDeduction).HasColumnType("numeric(18,2)");
             b.Entity<Expense>().Property(x => x.Amount).HasColumnType("numeric(18,2)");
+            
 
             // One budget per Category/Month/Year
             b.Entity<Budget>()

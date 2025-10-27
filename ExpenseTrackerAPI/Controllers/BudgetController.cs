@@ -40,8 +40,8 @@ namespace ExpenseTrackerAPI.Controllers
         [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> SetBudget([FromBody] SetBudgetRequest req, CancellationToken ct)
         {
-            if (!IsSetWindowOpen(DateTime.UtcNow, req.Month, req.Year))
-                return Forbid("Budget can only be set from the 1st to the 10th of the month.");
+            //if (!IsSetWindowOpen(DateTime.UtcNow, req.Month, req.Year))
+                //return Forbid("Budget can only be set from the 1st to the 10th of the month.");
 
             var user = await _userManager.GetUserAsync(User);
             if (user == null) return Unauthorized();
@@ -172,5 +172,36 @@ namespace ExpenseTrackerAPI.Controllers
 
             return Ok(new { totals, categories });
         }
+        [HttpGet("overview")]
+[Authorize(Policy = "RequireManager")]
+public async Task<IActionResult> ManagerOverview([FromQuery] int month, [FromQuery] int year, CancellationToken ct)
+{
+    var budgets = await _db.Budgets
+        .Include(b => b.Category)
+        .Where(b => b.Month == month && b.Year == year)
+        .ToListAsync(ct);
+
+    var overview = budgets.Select(b =>
+    {
+        var initial = b.InitialAmount;
+        var remaining = b.RemainingAmount;
+        var deducted = initial - remaining;
+        var usage = initial == 0 ? 0 : Math.Round((double)(deducted / initial) * 100, 2);
+
+        return new
+        {
+            b.CategoryId,
+            CategoryName = b.Category.Name,
+            InitialMonthlyBudget = initial,
+            RemainingBudget = remaining,
+            ExpensesDeducted = deducted,
+            BudgetUsagePercent = usage,
+            BudgetSetBy = b.CreatedByManagerName
+        };
+    }).OrderBy(x => x.CategoryName).ToList();
+
+    return Ok(overview);
+}
+
     }
 }

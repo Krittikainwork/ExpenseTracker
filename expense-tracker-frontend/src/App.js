@@ -3,9 +3,11 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import EmployeeDashboard from './pages/EmployeeDashboard';
+import ManagerDashboard from './pages/ManagerDashboard';
+import axios from 'axios';
 
-<Route path="/dashboard" element={<EmployeeDashboard />} />
-
+axios.defaults.baseURL = 'http://localhost:5202'; // or your deployed API URL
+axios.defaults.headers.common['Authorization'] = `Bearer ${localStorage.getItem('token')}`;
 function App() {
   return (
     <Router>
@@ -13,8 +15,8 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<EmployeeDashboard />} />
-        navigate('/dashboard');
+        <Route path="/employee" element={<EmployeeDashboard />} />
+        <Route path="/manager" element={<ManagerDashboard />} />
       </Routes>
     </Router>
   );

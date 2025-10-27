@@ -1,8 +1,7 @@
-// src/pages/Login.js
 import React, { useState } from 'react';
 import { login } from '../services/authService';
 import { useNavigate, Link } from 'react-router-dom';
-import './Auth.css'; // CSS file we'll create next
+import './Auth.css';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -13,11 +12,20 @@ function Login() {
     e.preventDefault();
     try {
       const res = await login({ email, password });
-     
 
+      // Save token and username
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('username', res.data.username);
-      navigate('/dashboard');
+      localStorage.setItem('role', res.data.role); // Save role for later use
+
+      // Redirect based on role
+      if (res.data.role === 'Manager') {
+        navigate('/manager');
+      } else if (res.data.role === 'Employee') {
+        navigate('/employee');
+      } else {
+        alert('Unknown role. Please contact admin.');
+      }
     } catch (err) {
       alert('Login failed');
     }
