@@ -1,0 +1,280 @@
+/* Make sure topbar icons are not clipped and have spacing */
+.topbar-icons {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Clear All button appearance inside notif header */
+.clear-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #eef2ff;
+  color: #1f2937;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.clear-all-btn:hover {
+  background: #e0e7ff;
+}
+/* Make sure topbar icons are not clipped and have spacing */
+.topbar-icons {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Clear All button appearance inside notif header */
+.clear-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #eef2ff;
+  color: #1f2937;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.clear-all-btn:hover {
+  background: #e0e7ff;
+}
+/* Make sure the topbar icons are visible over the gradient */
+.manager-topbar {
+  position: relative; /* create stacking context */
+  z-index: 1;
+}
+
+.topbar-icons {
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Ensure icon buttons render white icons, not inherit muted colors */
+.manager-topbar .icon-btn,
+.manager-topbar .icon-btn svg {
+  color: #ffffff !important;       /* SVG uses currentColor */
+  fill: #ffffff !important;         /* fallback for some SVGs */
+}
+
+/* Slightly larger icons in the top bar */
+.manager-topbar .icon-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Badge looks crisp on gradient */
+.icon-badge__dot {
+  background: #ff3b3b;
+  color: #fff;
+  border: 2px solid #fff;
+  font-weight: 700;
+}
+
+/* Right panel: boost the bell icon size inside the "Notifications" header */
+.notif-card__title svg {
+  width: 20px !important;
+  height: 20px !important;
+  color: #1f2937;   /* dark gray for contrast on white card */
+  fill: #1f2937;
+}
+
+/* Clear All button styling in header */
+.clear-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #eef2ff;
+  color: #1f2937;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.clear-all-btn svg {
+  width: 16px; height: 16px;
+  color: #1f2937; fill: #1f2937;
+}
+.clear-all-btn:hover { background: #e0e7ff; }
+/* ===== TOPBAR ICONS FIX ===== */
+.topbar-icons {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 6px;
+  transition: transform 0.2s ease;
+}
+
+.icon-btn:hover {
+  transform: scale(1.1);
+  color: #ffde59;
+}
+
+.icon-badge {
+  position: relative;
+}
+
+.icon-badge__dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ff3b30;
+  color: #fff;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+/* Ensure topbar contrast visibility */
+.manager-topbar {
+  background: linear-gradient(90deg, #2563eb, #1e40af);
+  color: white;
+  display: flex;
+  align-items: center;
+  padding: 12px 24px;
+  border-radius: 12px;
+}
+
+.manager-topbar__brand {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.manager-topbar__welcome {
+  margin-left: 16px;
+  font-size: 16px;
+}
+
+.manager-topbar__spacer {
+  flex-grow: 1;
+}
+/* ====== HEADER STYLE ENHANCEMENTS ====== */
+
+/* Top title - "Expense Tracker" */
+.manager-topbar__brand {
+  font-size: 28px;        /* increased font size */
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+}
+
+/* Section headers (Pending Expense Requests, Set Budget, etc.) */
+.card__header {
+  color: #1e3a8a;          /* deep blue shade */
+  font-weight: 600;
+  font-size: 20px;         /* increased size */
+  border-left: 4px solid #3b82f6; /* subtle blue accent bar */
+  padding-left: 10px;
+  margin-bottom: 6px;
+}
+
+/* Notifications header (in right sidebar) */
+.notif-card__title {
+  color: #1e3a8a;           /* blue color */
+  font-size: 18px;          /* increased size */
+  font-weight: 600;
+}
+
+/* Optional: better spacing for readability */
+.card {
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* ====== TOPBAR REFINEMENT ====== */
+.manager-topbar {
+  background: linear-gradient(90deg, #2563eb, #1e40af);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  border-radius: 12px;
+}
+
+.manager-topbar__welcome {
+  margin-left: 16px;
+  font-size: 17px;
+  font-weight: 500;
+  color: #e2e8f0;
+}
+
+/* ====== ICON BUTTONS (kept same for consistency) ====== */
+.topbar-icons {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 6px;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.icon-btn:hover {
+  transform: scale(1.1);
+  color: #ffde59;
+}
+
+.icon-badge {
+  position: relative;
+}
+
+.icon-badge__dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ff3b30;
+  color: #fff;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 50%;
+  font-weight: bold;
+}
+/* manager-theme.css */
+.btn-group {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.btn {
+  font: inherit;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--success {
+  background: #10b981; /* emerald-500 */
+  color: white;
+}
+.btn--success:hover:not(:disabled) { background: #059669; }
+
+.btn--danger {
+  background: #ef4444; /* red-500 */
+  color: white;
+}
+.btn--danger:hover:not(:disabled) { background: #dc2626; }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { FaBell, FaMoneyBillWave, FaSignOutAlt } from 'react-icons/fa';
+import { FaBell, FaMoneyBillWave, FaSignOutAlt, FaTrash } from 'react-icons/fa';
 import './Dashboard.css';
 
 const categories = [
@@ -13,7 +13,11 @@ const categories = [
 
 function EmployeeDashboard() {
   const [expenses, setExpenses] = useState([]);
+
+  // 🔹 Notifications are now loaded from backend (not derived from expenses)
   const [notifications, setNotifications] = useState([]);
+  const [notifToast, setNotifToast] = useState('');
+
   const [formData, setFormData] = useState({
     title: '',
     amount: '',
@@ -21,19 +25,20 @@ function EmployeeDashboard() {
     expenseDate: ''
   });
   const [selectedDate, setSelectedDate] = useState('');
+  const [username, setUsername] = useState('');
   const token = localStorage.getItem('token');
 
   useEffect(() => {
+    const storedUsername = localStorage.getItem('username');
+    if (storedUsername) setUsername(storedUsername);
     fetchExpenses();
+    fetchEmployeeNotifications();
+
+    // Auto-refresh notifications every 30s (optional)
+    const notifInterval = setInterval(fetchEmployeeNotifications, 30000);
+    return () => clearInterval(notifInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const [username, setUsername] = useState('');
-
-useEffect(() => {
-  const storedUsername = localStorage.getItem('username');
-  if (storedUsername) setUsername(storedUsername);
-  fetchExpenses();
-}, []);
-
 
   const fetchExpenses = async () => {
     try {
@@ -41,15 +46,44 @@ useEffect(() => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setExpenses(res.data);
-      const notifs = res.data
-        .filter(e => e.status !== 'Pending')
-        .map(e => ({
-          message: `${e.title} - ${e.status}: ${e.managerComment || 'No comment'}`,
-          status: e.status
-        }));
-      setNotifications(notifs);
     } catch (err) {
       console.error('Error fetching expenses:', err);
+    }
+  };
+
+  // 🔹 NEW: Load notifications from backend table
+  const fetchEmployeeNotifications = async () => {
+    try {
+      const res = await axios.get('http://localhost:5202/api/notifications', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const list = Array.isArray(res.data) ? res.data : [];
+      setNotifications(list);
+    } catch (err) {
+      console.error('GET /api/notifications failed:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message
+      });
+      setNotifToast('Failed to load notifications.');
+    }
+  };
+
+  // 🔹 NEW: Clear on the backend, then reset UI + badge
+  const clearAllNotifications = async () => {
+    try {
+      await axios.post('http://localhost:5202/api/notifications/clear', null, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications([]);
+      setNotifToast('Notifications cleared.');
+    } catch (err) {
+      console.error('POST /api/notifications/clear failed:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message
+      });
+      setNotifToast('Failed to clear notifications.');
     }
   };
 
@@ -61,7 +95,6 @@ useEffect(() => {
     e.preventDefault();
     const formattedDate = new Date(selectedDate).toISOString();
     const payload = { ...formData, expenseDate: formattedDate };
-
     try {
       await axios.post('http://localhost:5202/api/expenses/submit', payload, {
         headers: { Authorization: `Bearer ${token}` }
@@ -70,6 +103,9 @@ useEffect(() => {
       setFormData({ title: '', amount: '', categoryId: '', expenseDate: '' });
       setSelectedDate('');
       fetchExpenses();
+
+      // Optional: refresh notifications after submission
+      fetchEmployeeNotifications();
     } catch (err) {
       alert('Failed to submit expense');
       console.error(err);
@@ -94,23 +130,34 @@ useEffect(() => {
     }
   };
 
+  // helper for dd/MM/yyyy HH:mm
+  const fmtDateTime = (d) => {
+    if (!d) return '';
+    const dt = new Date(d);
+    const dd = String(dt.getDate()).padStart(2, '0');
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const yy = dt.getFullYear();
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const mi = String(dt.getMinutes()).padStart(2, '0');
+    return `${dd}/${mm}/${yy} ${hh}:${mi}`;
+  };
+
   return (
     <div className="dashboard">
       {/* Header */}
       <div className="header">
         <h2>
-  Expense Tracker <span>Welcome, {'Employee'}</span>
-</h2>
-
-
+          Expense Tracker <span>Welcome, {'Employee'}</span>
+        </h2>
         <div className="header-actions">
-          <div className="notification-bell">
+          {/* Bell with backend notifications count */}
+          <div className="notification-bell" title="Notifications">
             <FaBell size={20} />
             {notifications.length > 0 && (
               <span className="notif-count">{notifications.length}</span>
             )}
           </div>
-          <button className="logout-btn" onClick={handleLogout}>
+          <button className="logout-btn" onClick={handleLogout} title="Logout">
             <FaSignOutAlt size={16} />
           </button>
         </div>
@@ -190,24 +237,36 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Notifications */}
+        {/* Notifications (from backend) */}
         <div className="notifications-section card">
-          <h3>Notifications</h3>
+          <div className="notif-header">
+            <h3>Notifications</h3>
+            <button className="clear-all-btn" onClick={clearAllNotifications} title="Clear all notifications">
+              <FaTrash size={14} />
+              <span>Clear All</span>
+            </button>
+          </div>
+
+          {notifToast && (
+            <div className="notif-toast">{notifToast}</div>
+          )}
+
           {notifications.length > 0 ? (
-            notifications.map((note, index) => (
-              <div
-                key={index}
-                className={`notification-card ${
-                  note.status === 'Approved'
-                    ? 'approved'
-                    : note.status === 'Rejected'
-                    ? 'rejected'
-                    : ''
-                }`}
-              >
-                {note.message}
-              </div>
-            ))
+            notifications.map((n, index) => {
+              // Class coloring: infer from message keywords if no explicit status
+              const msg = String(n.message || '').toLowerCase();
+              const statusClass = msg.includes('reject')
+                ? 'notification-card rejected'
+                : msg.includes('approved')
+                ? 'notification-card approved'
+                : 'notification-card'; // neutral/pending-ish
+              return (
+                <div key={n.notificationId || index} className={statusClass}>
+                  {n.message}
+                  <div className="muted-time">{fmtDateTime(n.createdAt)}</div>
+                </div>
+              );
+            })
           ) : (
             <p>No new notifications</p>
           )}

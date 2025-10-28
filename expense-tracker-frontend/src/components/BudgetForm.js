@@ -1,7 +1,8 @@
+// src/components/BudgetForm.js
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const BudgetForm = ({ month, year }) => {
+const BudgetForm = ({ month, year, onBudgetSet }) => {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [amount, setAmount] = useState('');
@@ -17,16 +18,20 @@ const BudgetForm = ({ month, year }) => {
       setCategories(res.data);
     } catch (err) {
       console.error('Error fetching categories:', err);
+      setMessage('Failed to load categories.');
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
-
+    if (!selectedCategory || !amount) {
+      setMessage('Please select a category and enter an amount.');
+      return;
+    }
     try {
       await axios.post('/api/budget/set', {
-        categoryId: parseInt(selectedCategory),
+        categoryId: parseInt(selectedCategory, 10),
         initialAmount: parseFloat(amount),
         month,
         year,
@@ -34,6 +39,7 @@ const BudgetForm = ({ month, year }) => {
       setMessage('Budget set successfully!');
       setAmount('');
       setSelectedCategory('');
+      onBudgetSet && onBudgetSet(); // let parent refresh overview
     } catch (err) {
       console.error('Error setting budget:', err);
       setMessage('Failed to set budget. Please try again.');
@@ -41,36 +47,31 @@ const BudgetForm = ({ month, year }) => {
   };
 
   return (
-    <div className="budget-form">
-      <form onSubmit={handleSubmit}>
-        <label>Category:</label>
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          required
-        >
-          <option value="">Select Category</option>
-          
-  {categories.map(category => (
-    <option key={category.id} value={category.id}>
-      {category.name}
-    </option>
-  ))}
-</select>
+    <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 8, maxWidth: 420 }}>
+      <label>Category:</label>
+      <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} required>
+        <option value="">Select Category</option>
+        {categories.map((category) => (
+          <option key={category.categoryId || category.id} value={category.categoryId || category.id}>
+            {category.name}
+          </option>
+        ))}
+      </select>
 
-        <label>Amount:</label>
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          required
-        />
+      <label>Amount (₹):</label>
+      <input
+        type="number"
+        min="0"
+        step="0.01"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        required
+      />
 
-        <button type="submit">Add Budget</button>
-      </form>
+      <button type="submit">Add Budget</button>
 
-      {message && <p className="message">{message}</p>}
-    </div>
+      {message && <div style={{ marginTop: 6, color: '#0a7' }}>{message}</div>}
+    </form>
   );
 };
 

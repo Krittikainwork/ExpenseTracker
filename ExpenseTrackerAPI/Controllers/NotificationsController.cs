@@ -1,3 +1,4 @@
+// Controllers/NotificationsController.cs
 using ExpenseTrackerAPI.Data;
 using ExpenseTrackerAPI.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -20,7 +21,7 @@ namespace ExpenseTrackerAPI.Controllers
         }
 
         [HttpGet]
-        [Authorize]
+        [Authorize] // same as your GET
         public async Task<IActionResult> Get(CancellationToken ct)
         {
             var userId = _userManager.GetUserId(User);
@@ -37,11 +38,30 @@ namespace ExpenseTrackerAPI.Controllers
         public async Task<IActionResult> MarkRead(int id, CancellationToken ct)
         {
             var userId = _userManager.GetUserId(User);
-            var n = await _db.NotificationRecords.FirstOrDefaultAsync(x => x.NotificationId == id && x.RecipientId == userId, ct);
+            var n = await _db.NotificationRecords
+                .FirstOrDefaultAsync(x => x.NotificationId == id && x.RecipientId == userId, ct);
             if (n == null) return NotFound();
+
             n.IsRead = true;
             await _db.SaveChangesAsync(ct);
             return Ok();
+        }
+
+        // ✅ NEW: Clear all notifications for the current user (hard delete)
+        [HttpPost("clear")]
+        [Authorize] // keep same policy so it works with your token
+        public async Task<IActionResult> ClearAll(CancellationToken ct)
+        {
+            var userId = _userManager.GetUserId(User);
+            var toDelete = await _db.NotificationRecords
+                .Where(n => n.RecipientId == userId)
+                .ToListAsync(ct);
+
+            if (toDelete.Count == 0) return Ok(new { cleared = 0 });
+
+            _db.NotificationRecords.RemoveRange(toDelete);
+            var cleared = await _db.SaveChangesAsync(ct);
+            return Ok(new { cleared });
         }
     }
 }
