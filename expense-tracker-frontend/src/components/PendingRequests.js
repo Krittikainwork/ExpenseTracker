@@ -64,7 +64,7 @@ const PendingRequests = () => {
               <th>Title</th>
               <th className="t-right">Amount (₹)</th>
               <th>Category</th>
-              <th>Date Submitted</th>
+              <th>Expense Date</th>
               <th className="t-center">Actions</th>
             </tr>
           </thead>

@@ -1,3 +1,4 @@
+// src/pages/EmployeeDashboard.js
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { FaBell, FaMoneyBillWave, FaSignOutAlt, FaTrash } from 'react-icons/fa';
@@ -15,20 +16,14 @@ const PAGE = 10;
 
 function EmployeeDashboard() {
   const [expenses, setExpenses] = useState([]);
-  // 🔹 Notifications are loaded from backend (not derived from expenses)
+  const [reimbMap, setReimbMap] = useState({}); // { expenseId: { paidDateUtc, reference } }
   const [notifications, setNotifications] = useState([]);
   const [notifToast, setNotifToast] = useState('');
-  const [formData, setFormData] = useState({
-    title: '',
-    amount: '',
-    categoryId: '',
-    expenseDate: ''
-  });
+  const [formData, setFormData] = useState({ title: '', amount: '', categoryId: '', expenseDate: '' });
   const [selectedDate, setSelectedDate] = useState('');
   const [username, setUsername] = useState('');
   const token = localStorage.getItem('token');
 
-  // NEW: paging for My Expenses
   const [visible, setVisible] = useState(PAGE);
 
   useEffect(() => {
@@ -36,6 +31,7 @@ function EmployeeDashboard() {
     if (storedUsername) setUsername(storedUsername);
     fetchExpenses();
     fetchEmployeeNotifications();
+    fetchReimbStatus();
     const notifInterval = setInterval(fetchEmployeeNotifications, 30000);
     return () => clearInterval(notifInterval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -47,7 +43,6 @@ function EmployeeDashboard() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const list = Array.isArray(res.data) ? res.data : [];
-      // Newest first (by expenseDate; fallback to expenseId)
       const sorted = [...list].sort((a, b) => {
         const da = a?.expenseDate ? new Date(a.expenseDate).getTime() : 0;
         const db = b?.expenseDate ? new Date(b.expenseDate).getTime() : 0;
@@ -61,7 +56,20 @@ function EmployeeDashboard() {
     }
   };
 
-  // 🔹 Load notifications from backend table
+  const fetchReimbStatus = async () => {
+    try {
+      const res = await axios.get('http://localhost:5202/api/reimbursements/status/my', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const list = Array.isArray(res.data) ? res.data : [];
+      const map = {};
+      list.forEach((x) => { map[x.expenseId] = { paidDateUtc: x.paidDateUtc, reference: x.reference }; });
+      setReimbMap(map);
+    } catch (err) {
+      console.error('GET /api/reimbursements/status/my failed:', err);
+    }
+  };
+
   const fetchEmployeeNotifications = async () => {
     try {
       const res = await axios.get('http://localhost:5202/api/notifications', {
@@ -70,16 +78,11 @@ function EmployeeDashboard() {
       const list = Array.isArray(res.data) ? res.data : [];
       setNotifications(list);
     } catch (err) {
-      console.error('GET /api/notifications failed:', {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message
-      });
+      console.error('GET /api/notifications failed:', err);
       setNotifToast('Failed to load notifications.');
     }
   };
 
-  // 🔹 Clear on the backend, then reset UI + badge
   const clearAllNotifications = async () => {
     try {
       await axios.post('http://localhost:5202/api/notifications/clear', null, {
@@ -88,18 +91,12 @@ function EmployeeDashboard() {
       setNotifications([]);
       setNotifToast('Notifications cleared.');
     } catch (err) {
-      console.error('POST /api/notifications/clear failed:', {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message
-      });
+      console.error('POST /api/notifications/clear failed:', err);
       setNotifToast('Failed to clear notifications.');
     }
   };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -113,7 +110,6 @@ function EmployeeDashboard() {
       setFormData({ title: '', amount: '', categoryId: '', expenseDate: '' });
       setSelectedDate('');
       fetchExpenses();
-      // Optional: refresh notifications after submission
       fetchEmployeeNotifications();
     } catch (err) {
       alert('Failed to submit expense');
@@ -128,15 +124,25 @@ function EmployeeDashboard() {
 
   const getStatusClass = (status) => {
     switch (status) {
-      case 'Approved':
-        return 'status approved';
-      case 'Pending':
-        return 'status pending';
-      case 'Rejected':
-        return 'status rejected';
-      default:
-        return 'status';
+      case 'Approved': return 'status approved';
+      case 'Pending': return 'status pending';
+      case 'Rejected': return 'status rejected';
+      default: return 'status';
     }
+  };
+
+  const showMore = () => setVisible((v) => Math.min(v + PAGE, expenses.length));
+
+  const renderReimb = (exp) => {
+    const status = String(exp.status ?? '').toLowerCase();
+    const m = reimbMap[exp.expenseId];
+    if (m?.paidDateUtc) {
+      const dd = new Date(m.paidDateUtc);
+      const s = `${String(dd.getDate()).padStart(2, '0')}/${String(dd.getMonth() + 1).padStart(2, '0')}/${dd.getFullYear()}`;
+      return <span className="badge badge--ok">Paid&nbsp;({s})</span>;
+    }
+    if (status === 'approved') return <span className="badge badge--warn">Pending</span>;
+    return '—';
   };
 
   // helper for dd/MM/yyyy HH:mm
@@ -151,8 +157,6 @@ function EmployeeDashboard() {
     return `${dd}/${mm}/${yy} ${hh}:${mi}`;
   };
 
-  const showMore = () => setVisible((v) => Math.min(v + PAGE, expenses.length));
-
   return (
     <div className="dashboard">
       {/* Header */}
@@ -161,7 +165,6 @@ function EmployeeDashboard() {
           Expense Tracker <span>Welcome, {'Employee'}</span>
         </h2>
         <div className="header-actions">
-          {/* Bell with backend notifications count */}
           <div className="notification-bell" title="Notifications">
             <FaBell size={20} />
             {notifications.length > 0 && (
@@ -181,39 +184,15 @@ function EmployeeDashboard() {
             <h3><FaMoneyBillWave /> Submit New Expense</h3>
             <p>Fill out the form below to submit an expense for approval</p>
             <form onSubmit={handleSubmit}>
-              <input
-                type="text"
-                name="title"
-                placeholder="Expense Title"
-                value={formData.title}
-                onChange={handleChange}
-                required
-              />
-              <input
-                type="number"
-                name="amount"
-                placeholder="Amount"
-                value={formData.amount}
-                onChange={handleChange}
-                required
-              />
-              <select
-                name="categoryId"
-                value={formData.categoryId}
-                onChange={handleChange}
-                required
-              >
+              <input type="text" name="title" placeholder="Expense Title" value={formData.title} onChange={handleChange} required />
+              <input type="number" name="amount" placeholder="Amount" value={formData.amount} onChange={handleChange} required />
+              <select name="categoryId" value={formData.categoryId} onChange={handleChange} required>
                 <option value="">Select Category</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                required
-              />
+              <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} required />
               <button type="submit">Submit Expense</button>
             </form>
           </div>
@@ -228,8 +207,9 @@ function EmployeeDashboard() {
                   <th>Amount</th>
                   <th>Category</th>
                   <th>Status</th>
-                  <th>Date Submitted</th>
+                  <th>Expense Date</th>
                   <th>Manager Comment</th>
+                  <th>Reimbursement</th> {/* NEW */}
                 </tr>
               </thead>
               <tbody>
@@ -241,11 +221,12 @@ function EmployeeDashboard() {
                     <td><span className={getStatusClass(exp.status)}>{exp.status}</span></td>
                     <td>{new Date(exp.expenseDate).toLocaleDateString()}</td>
                     <td>{exp.managerComment ?? '-'}</td>
+                    <td>{renderReimb(exp)}</td>
                   </tr>
                 ))}
                 {expenses.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ color: '#888', padding: 12 }} className="t-center">
+                    <td colSpan={7} style={{ color: '#888', padding: 12 }} className="t-center">
                       No expenses yet.
                     </td>
                   </tr>
@@ -255,13 +236,15 @@ function EmployeeDashboard() {
 
             {visible < expenses.length && (
               <div className="t-center" style={{ marginTop: 8 }}>
-                <button className="btn-pill" onClick={showMore}>See more</button>
+                <button className="btn-pill" onClick={() => setVisible((v) => Math.min(v + PAGE, expenses.length))}>
+                  See more
+                </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Notifications (from backend) */}
+        {/* Notifications */}
         <div className="notifications-section card">
           <div className="notif-header">
             <h3>Notifications</h3>
@@ -271,17 +254,14 @@ function EmployeeDashboard() {
             </button>
           </div>
 
-          {notifToast && (
-            <div className="notif-toast">{notifToast}</div>
-          )}
+          {notifToast && <div className="notif-toast">{notifToast}</div>}
 
           {notifications.length > 0 ? (
             notifications.map((n, index) => {
               const msg = String(n.message ?? '').toLowerCase();
-              const statusClass = msg.includes('reject')
-                ? 'notification-card rejected'
-                : msg.includes('approved')
-                ? 'notification-card approved'
+              const statusClass =
+                msg.includes('reject') ? 'notification-card rejected'
+                : msg.includes('approved') ? 'notification-card approved'
                 : 'notification-card';
               return (
                 <div key={n.notificationId ?? index} className={statusClass}>

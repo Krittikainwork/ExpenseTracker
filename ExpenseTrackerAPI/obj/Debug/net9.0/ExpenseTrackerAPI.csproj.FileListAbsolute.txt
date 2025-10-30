@@ -130,6 +130,7 @@ C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\ExpenseTr
 C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\ExpenseTrackerAPI.csproj.CoreCompileInputs.cache
 C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\ExpenseTrackerAPI.MvcApplicationPartsAssemblyInfo.cs
 C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\ExpenseTrackerAPI.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\ExpenseTrackerAPI.sourcelink.json
 C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\rjimswa.dswa.cache.json
 C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\rjsmrazor.dswa.cache.json
 C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\rjsmcshtml.dswa.cache.json
@@ -144,4 +145,3 @@ C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\refint\Ex
 C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\ExpenseTrackerAPI.pdb
 C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\ExpenseTrackerAPI.genruntimeconfig.cache
 C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\ref\ExpenseTrackerAPI.dll
-C:\Users\CEPL\Expense-Tracker-Final\ExpenseTrackerAPI\obj\Debug\net9.0\ExpenseTrackerAPI.sourcelink.json

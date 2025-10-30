@@ -3,6 +3,7 @@ import AdminPendingRequests from '../components/AdminPendingRequests';
 import AdminBudgetOverview from '../components/AdminBudgetOverview';
 import AdminBudgetHistory from '../components/AdminBudgetHistory';
 import AdminProcessedHistory from '../components/AdminProcessedHistory';
+import AdminReimbursementPending from '../components/AdminReimbursementPending'; // ✅ NEW
 import BudgetForm from '../components/BudgetForm';
 import { FaSignOutAlt } from 'react-icons/fa';
 import '../styles/manager-theme.css';
@@ -24,6 +25,7 @@ const AdminDashboard = () => {
 
   const onBudgetSet = () => setRefreshSignal((x) => x + 1);
 
+  // Keep the Clear All action here (Admin role)
   const clearMonthFromToolbar = async () => {
     try {
       await axios.post('/api/budget/clear-month', { month, year, setByRole: 'Admin' });
@@ -37,7 +39,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="dashboard">
-      {/* Topbar */}
+      {/* ===== Topbar ===== */}
       <div className="topbar topbar--gradient">
         <div className="brand">Expense Tracker</div>
         <div className="spacer" />
@@ -47,7 +49,7 @@ const AdminDashboard = () => {
         </button>
       </div>
 
-      {/* Month/Year toolbar */}
+      {/* ===== Month/Year toolbar ===== */}
       <div className="toolbar mb-12">
         <label style={{ marginRight: 8 }}>Month</label>
         <select value={month} onChange={(e) => setMonth(parseInt(e.target.value, 10))}>
@@ -64,19 +66,19 @@ const AdminDashboard = () => {
         />
       </div>
 
-      {/* Pending (read-only) */}
+      {/* ===== Pending (read-only) ===== */}
       <div className="card mb-12">
         <div className="card-title">Pending Expense Requests</div>
         <AdminPendingRequests />
       </div>
 
-      {/* Admin can set/top-up */}
+      {/* ===== Set Budget (Admin can set/top-up) ===== */}
       <div className="card mb-12">
         <div className="card-title">Set Budget</div>
         <BudgetForm month={month} year={year} onBudgetSet={onBudgetSet} roles={['Admin']} />
       </div>
 
-      {/* Overview / History */}
+      {/* ===== Overview / History ===== */}
       <div className="card mb-12">
         <div className="card-title">{showHistory ? 'Budget History Timeline' : 'Live Budget Overview'}</div>
 
@@ -109,10 +111,16 @@ const AdminDashboard = () => {
         )}
       </div>
 
-      {/* Processed History */}
+      {/* ===== Processed History ===== */}
       <div className="card mb-12">
         <div className="card-title">Processed Expense History</div>
         <AdminProcessedHistory />
+      </div>
+
+      {/* ===== Reimbursement Pending (NEW) ===== */}
+      <div className="card mb-12">
+        <div className="card-title">Reimbursement Pending</div>
+        <AdminReimbursementPending month={month} year={year} />
       </div>
     </div>
   );

@@ -1,6 +1,5 @@
-// src/components/AdminProcessedHistory.js
 import '../styles/manager-theme.css';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import '../styles/dashboard-theme.css';
 
@@ -11,21 +10,26 @@ const money = (n) =>
     maximumFractionDigits: 2,
   });
 
-const PAGE = 10; // show 10 rows, then "See more"
+// PAGE size for "See more"
+const PAGE = 10;
 
 const AdminProcessedHistory = () => {
   const [rows, setRows] = useState([]);
-  const [visible, setVisible] = useState(PAGE);
+  const [map, setMap] = useState([]); // reimbursement map
   const [comment, setComment] = useState({});
   const [toast, setToast] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // NEW: visible count for "See more"
+  const [visible, setVisible] = useState(PAGE);
+
   const load = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/expenses/processed'); // Admin can view via policy
+      // processed items (existing endpoint)
+      const res = await axios.get('/api/expenses/processed');
       const list = Array.isArray(res.data) ? res.data : [];
-      // Newest first (by dateSubmitted; fallback to expenseId)
+      // newest first by dateSubmitted, fallback to expenseId
       const sorted = [...list].sort((a, b) => {
         const da = a?.dateSubmitted ? new Date(a.dateSubmitted).getTime() : 0;
         const db = b?.dateSubmitted ? new Date(b.dateSubmitted).getTime() : 0;
@@ -33,6 +37,13 @@ const AdminProcessedHistory = () => {
         return (b?.expenseId ?? 0) - (a?.expenseId ?? 0);
       });
       setRows(sorted);
+
+      // reimbursement map (global) for status column
+      const mres = await axios.get('/api/reimbursements/map-all');
+      const m = Array.isArray(mres.data) ? mres.data : [];
+      setMap(m);
+
+      // reset paging after refresh
       setVisible(PAGE);
     } catch (e) {
       console.error(e);
@@ -46,11 +57,19 @@ const AdminProcessedHistory = () => {
     load();
   }, []);
 
+  const mapById = useMemo(() => {
+    const d = {};
+    map.forEach((x) => {
+      d[x.expenseId] = x;
+    });
+    return d;
+  }, [map]);
+
   const postComment = async (expenseId) => {
     const text = (comment[expenseId] ?? '').trim();
     if (!text) return;
     try {
-      await axios.put(`/api/expenses/comment/${expenseId}`, { comment: text }); // Admin-only endpoint
+      await axios.put(`/api/expenses/comment/${expenseId}`, { comment: text });
       setComment((c) => ({ ...c, [expenseId]: '' }));
       setToast('Comment posted.');
       load();
@@ -60,14 +79,25 @@ const AdminProcessedHistory = () => {
     }
   };
 
+  const reimbCell = (e) => {
+    const m = mapById[e.expenseId];
+    if (m?.paidDateUtc) {
+      const dd = new Date(m.paidDateUtc);
+      const s = `${String(dd.getDate()).padStart(2, '0')}/${String(dd.getMonth() + 1).padStart(2, '0')}/${dd.getFullYear()}`;
+      return <span className="badge badge--ok">Paid&nbsp;({s})</span>;
+    }
+    if (String(e.status ?? '').toLowerCase() === 'approved') {
+      return <span className="badge badge--warn">Pending</span>;
+    }
+    return '—';
+  };
+
+  // NEW: handler for "See more"
   const showMore = () => setVisible((v) => Math.min(v + PAGE, rows.length));
 
   return (
     <div>
-      {/* (Title is shown by the page card; keep table-only here to avoid duplicates) */}
-
       {toast && <div className="mb-8" style={{ color: '#0a7' }}>{toast}</div>}
-
       {loading ? (
         <div>Loading…</div>
       ) : (
@@ -84,12 +114,14 @@ const AdminProcessedHistory = () => {
                 <th>Status</th>
                 <th>Manager</th>
                 <th>Manager Comment</th>
+                <th>Reimbursement Status</th> {/* status column retained */}
                 <th>Admin Comment</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {rows.length > 0 ? (
+                // NEW: slice by visible count
                 rows.slice(0, visible).map((e) => (
                   <tr key={e.expenseId}>
                     <td>{e.employeeName}</td>
@@ -101,6 +133,7 @@ const AdminProcessedHistory = () => {
                     <td>{e.status}</td>
                     <td>{e.manager ?? '-'}</td>
                     <td>{e.managerComment ?? '-'}</td>
+                    <td>{reimbCell(e)}</td>
                     <td>{e.adminComment ?? '-'}</td>
                     <td>
                       <input
@@ -119,7 +152,7 @@ const AdminProcessedHistory = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={11} className="t-center" style={{ color: '#888', padding: 12 }}>
+                  <td colSpan={12} className="t-center" style={{ color: '#888', padding: 12 }}>
                     No processed items.
                   </td>
                 </tr>
@@ -127,6 +160,7 @@ const AdminProcessedHistory = () => {
             </tbody>
           </table>
 
+          {/* NEW: See more button */}
           {visible < rows.length && (
             <div className="t-center" style={{ marginTop: 8 }}>
               <button className="btn-pill" onClick={showMore}>See more</button>
