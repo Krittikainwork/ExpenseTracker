@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import PendingRequests from '../components/PendingRequests';
 import BudgetForm from '../components/BudgetForm';
 import BudgetOverview from '../components/BudgetOverview';
 import BudgetHistory from '../components/BudgetHistory';
 import ProcessedHistory from '../components/ProcessedHistory';
 import Notifications from '../components/Notifications';
-import styles from './ManagerDashboard.module.css';
+import { FaBell, FaSignOutAlt } from 'react-icons/fa';
 import '../styles/manager-theme.css';
+import '../styles/dashboard-theme.css';
+import axios from 'axios';
 
 const ManagerDashboard = () => {
   const today = new Date();
@@ -14,7 +16,41 @@ const ManagerDashboard = () => {
   const [year, setYear] = useState(today.getFullYear());
   const [showHistory, setShowHistory] = useState(false);
   const [refreshSignal, setRefreshSignal] = useState(0);
+
+  // 🔔 Bell badge count
   const [notifCount, setNotifCount] = useState(0);
+
+  // Lightweight, non-intrusive polling to mirror Employee behavior
+  useEffect(() => {
+    let active = true;
+
+    const fetchNotifCount = async () => {
+      try {
+        const res = await axios.get('/api/notifications');
+        if (!active) return;
+        const list = Array.isArray(res.data) ? res.data : [];
+        setNotifCount(list.length);
+      } catch {
+        // silent fail; badge just won't change this tick
+      }
+    };
+
+    // initial load + 30s interval
+    fetchNotifCount();
+    const id = setInterval(fetchNotifCount, 30000);
+
+    // also reflect "Clear All" coming from the notifications panel
+    const onCleared = () => setNotifCount(0);
+    window.addEventListener('manager-clear-notifications', onCleared);
+
+    return () => {
+      active = false;
+      clearInterval(id);
+      window.removeEventListener('manager-clear-notifications', onCleared);
+    };
+  }, []);
+
+  const [toast, setToast] = useState('');
 
   const onBudgetSet = () => setRefreshSignal((x) => x + 1);
 
@@ -23,201 +59,143 @@ const ManagerDashboard = () => {
     window.location.assign('/login');
   };
 
+  // (kept) Toolbar Clear All action (Manager)
+  const clearMonthFromToolbar = async () => {
+    try {
+      await axios.post('/api/budget/clear-month', { month, year, setByRole: 'Manager' });
+      setToast(`Cleared budgets for ${month}/${year}.`);
+      setRefreshSignal((x) => x + 1);
+    } catch (err) {
+      console.error('Error clearing month budgets:', err);
+      setToast('Failed to clear month budgets. Please try again.');
+    }
+  };
+
   return (
-    <div className={`manager-root ${styles.container}`} style={{ gap: '32px' }}>
-      {/* ===== LEFT (main) ===== */}
-      <div className={styles.main}>
-        {/* ===== Topbar ===== */}
-        <div className="manager-topbar">
-          <div className="manager-topbar__brand">Expense Tracker</div>
-          <div className="manager-topbar__welcome">Welcome, Manager</div>
-          <div className="manager-topbar__spacer" />
+    <div className="layout">
+      {/* ===== Topbar (gradient, welcome, bell, logout) ===== */}
+      <div className="topbar topbar--gradient">
+        <div className="brand">Expense Tracker</div>
+        <span className="welcome">Welcome, Manager</span>
 
-          {/* ===== Icons on right ===== */}
-          <div className="topbar-icons">
-            {/* Notification Bell */}
-            <button
-              className="icon-btn icon-badge"
-              title="Notifications"
-              aria-label="Notifications"
-              onClick={() => {
-                const notifSection = document.querySelector('.notif-card');
-                notifSection?.scrollIntoView({ behavior: 'smooth' });
-              }}
-            >
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm6-6v-5a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2Z" />
-              </svg>
-              {notifCount > 0 && (
-                <span className="icon-badge__dot">{notifCount}</span>
-              )}
-            </button>
-
-            {/* Logout Button */}
-            <button
-              className="icon-btn"
-              onClick={handleLogout}
-              title="Logout"
-              aria-label="Logout"
-            >
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path d="M16 17v2H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h11v2H6v10h10Zm3.707-5.707-3-3-1.414 1.414L17.586 11H11v2h6.586l-2.293 2.293 1.414 1.414 3-3a1 1 0 0 0 0-1.414Z" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* ===== Month / Year Bar ===== */}
-        <div className="card mb-20">
-          <div
-            className="card__body"
-            style={{ display: 'flex', gap: 12, alignItems: 'center' }}
+        <div className="topbar__actions">
+          {/* Notifications bell with badge (now styled to be more prominent) */}
+          <button
+            className="icon-btn icon-btn--bell"
+            title="Notifications"
+            onClick={() => {
+              const notifSection = document.querySelector('.notif-card');
+              notifSection?.scrollIntoView({ behavior: 'smooth' });
+            }}
           >
-            <div>
-              <div className="muted">Month</div>
-              <select
-                className="round-select"
-                value={month}
-                onChange={(e) => setMonth(parseInt(e.target.value, 10))}
-              >
+            <FaBell />
+            {notifCount > 0 && <span className="badge">{notifCount}</span>}
+          </button>
+
+          {/* Logout */}
+          <button className="icon-btn" title="Logout" onClick={handleLogout}>
+            <FaSignOutAlt />
+          </button>
+        </div>
+      </div>
+
+      {/* ===== Main + Sidebar ===== */}
+      <div className="layout__content">
+        {/* ==== LEFT: Main column ==== */}
+        <div className="main">
+          {/* Month / Year toolbar */}
+          <div className="toolbar mb-12">
+            <div className="toolbar__inputs">
+              <label>Month</label>
+              <select value={month} onChange={(e) => setMonth(parseInt(e.target.value, 10))}>
                 {[...Array(12)].map((_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {i + 1}
-                  </option>
+                  <option key={i + 1} value={i + 1}>{i + 1}</option>
                 ))}
               </select>
-            </div>
-            <div>
-              <div className="muted">Year</div>
+
+              <label style={{ marginLeft: 16 }}>Year</label>
               <input
-                className="round-input"
                 type="number"
                 value={year}
                 onChange={(e) => setYear(parseInt(e.target.value, 10))}
                 style={{ width: 100 }}
               />
             </div>
-            {showHistory && (
-              <div style={{ marginLeft: 'auto' }}>
-                <button
-                  className="round-input"
-                  onClick={() => setShowHistory(false)}
-                >
-                  ← Back to Overview
-                </button>
-              </div>
-            )}
           </div>
-        </div>
 
-        {/* Pending Requests */}
-        <div className="card mb-20">
-          <div className="card__header" style={{ fontSize: '1.3rem' }}>
-            Pending Expense Requests
+          {/* Pending Requests */}
+          <div className="card mb-12">
+            <div className="card-title">Pending Expense Requests</div>
+            <PendingRequests />
           </div>
-          <div className="card__body">
-            <PendingRequests month={month} year={year} />
-          </div>
-        </div>
 
-        {/* Budget Form */}
-        <div className="card mb-20">
-          <div className="card__header" style={{ fontSize: '1.3rem' }}>
-            Set Budget
+          {/* Set Budget */}
+          <div className="card mb-12">
+            <div className="card-title">Set Budget</div>
+            <BudgetForm month={month} year={year} onBudgetSet={onBudgetSet} roles={['Manager']} />
           </div>
-          <div className="card__body">
-            <BudgetForm month={month} year={year} onBudgetSet={onBudgetSet} />
-          </div>
-        </div>
 
-        {/* Budget Overview / History */}
-        <div className="card mb-20">
-          <div className="card__header" style={{ fontSize: '1.3rem' }}>
-            {showHistory ? 'Budget History Timeline' : 'Live Budget Overview'}
-          </div>
-          <div className="card__body">
+          {/* Overview / History */}
+          <div className="card mb-12">
+            <div className="card-title">{showHistory ? 'Budget History Timeline' : 'Live Budget Overview'}</div>
+
             {showHistory ? (
-              <BudgetHistory
-                month={month}
-                year={year}
-                onBack={() => setShowHistory(false)}
-              />
+              // Child owns the back button (prevents double toolbar)
+              <BudgetHistory month={month} year={year} onBack={() => setShowHistory(false)} />
             ) : (
-              <BudgetOverview
-                month={month}
-                year={year}
-                onNavigateToHistory={() => setShowHistory(true)}
-                refreshSignal={refreshSignal}
-              />
+              <>
+                <div className="toolbar mb-8">
+                  <div className="muted">Live Budget Overview — {month}/{year}</div>
+                  <div style={{ marginLeft: 'auto' }} className="toolbar">
+                    <button className="btn-pill" onClick={clearMonthFromToolbar}>Clear All (Month)</button>
+                    <button className="btn-pill" onClick={() => setShowHistory(true)}>View Budget History</button>
+                  </div>
+                </div>
+                {toast && <div className="mb-8" style={{ color: '#0a7' }}>{toast}</div>}
+                <BudgetOverview
+                  month={month}
+                  year={year}
+                  refreshSignal={refreshSignal}
+                  onNavigateToHistory={() => setShowHistory(true)}
+                  roles={['Manager']}
+                />
+              </>
             )}
           </div>
-        </div>
 
-        {/* Processed History */}
-        <div className="card mb-20" style={{ overflowX: 'auto' }}>
-          <div className="card__header" style={{ fontSize: '1.3rem' }}>
-            Processed Expense History
-          </div>
-          <div className="card__body">
+          {/* Processed History */}
+          <div className="card mb-12">
+            <div className="card-title">Processed Expense History</div>
             <ProcessedHistory />
           </div>
         </div>
-      </div>
 
-      {/* ===== RIGHT SIDEBAR ===== */}
-      <div className={styles.sidebar}>
-        <div className="notif-card">
-          <div
-            className="notif-card__title"
-            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm6-6v-5a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2Z" />
-            </svg>
-            Notifications
-            <button
-              className="clear-all-btn"
-              title="Clear all notifications"
-              onClick={() => {
-                const ev = new CustomEvent('manager-clear-notifications');
-                window.dispatchEvent(ev);
-              }}
-              style={{ marginLeft: 'auto' }}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
+        {/* ==== RIGHT: Notifications sidebar ==== */}
+        <aside className="sidebar">
+          <div className="card notif-card">
+            <div className="card-title toolbar">
+              <span>Notifications</span>
+              <button
+                className="btn-pill btn-pill--light"
+                onClick={() => {
+                  // Notify panel to clear its list
+                  const ev = new CustomEvent('manager-clear-notifications');
+                  window.dispatchEvent(ev);
+                  // Ensure the badge clears immediately
+                  setNotifCount(0);
+                }}
               >
-                <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm0 6h2v9H9V9Zm4 0h2v9h-2V9Z" />
-              </svg>
-              <span style={{ marginLeft: 6 }}>Clear All</span>
-            </button>
+                Clear All
+              </button>
+            </div>
+
+            {/* Notification list (scrolls within card) */}
+            <div className="notif-list">
+              {/* This still drives real-time badge updates on fetches */}
+              <Notifications onCountChange={(n) => setNotifCount(n)} />
+            </div>
           </div>
-          <div className="card__body">
-            <Notifications onCount={(n) => setNotifCount(n)} />
-          </div>
-        </div>
+        </aside>
       </div>
     </div>
   );

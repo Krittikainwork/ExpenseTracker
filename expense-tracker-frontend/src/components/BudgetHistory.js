@@ -1,4 +1,3 @@
-// src/components/BudgetHistory.js
 import '../styles/manager-theme.css';
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
@@ -8,80 +7,93 @@ const BudgetHistory = ({ month, year, onBack }) => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
+  const [visible, setVisible] = useState({});
+  const PAGE = 5;
 
-  useEffect(() => {
-    fetchHistory();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month, year]);
+  useEffect(() => { fetchHistory(); /* eslint-disable-next-line */ }, [month, year]);
 
   const fetchHistory = async () => {
-    setLoading(true);
-    setToast('');
+    setLoading(true); setToast('');
     try {
       const res = await axios.get('/api/budget/history-detail', { params: { month, year } });
-      setHistory(Array.isArray(res.data) ? res.data : []);
+      const data = Array.isArray(res.data) ? res.data : [];
+      setHistory(data);
+      const initial = {};
+      data.forEach(cat => { initial[cat.categoryId] = PAGE; });
+      setVisible(initial);
     } catch (err) {
       console.error('Error fetching budget history:', err);
       setToast('Failed to load budget history. Try again.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
+  };
+
+  const seeMore = (categoryId, total) => {
+    setVisible(v => ({ ...v, [categoryId]: Math.min((v[categoryId] || PAGE) + PAGE, total) }));
   };
 
   return (
     <div>
       <div className="toolbar mb-8">
         <div className="muted">Budget History Timeline — {month}/{year}</div>
-        <div style={{ marginLeft: 'auto' }}>
-          <button onClick={() => (onBack ? onBack() : window.history.back())}>← Back to Overview</button>
-        </div>
+        <button onClick={() => (onBack ? onBack() : window.history.back())}>&larr; Back to Overview</button>
       </div>
 
-      {toast && <div className="mb-8" style={{ color: '#d33' }}>{toast}</div>}
+      {toast && <div className="mb-8" style={{ color: '#0a7' }}>{toast}</div>}
 
       {loading ? (
         <div>Loading…</div>
       ) : history.length === 0 ? (
-        <div style={{ color: '#888' }}>No history found for {month}/{year}.</div>
+        <div>No history found for {month}/{year}.</div>
       ) : (
-        history.map((cat) => (
-          <div key={cat.categoryId} className="mb-8">
-            <div className="mb-8" style={{ fontWeight: 600 }}>{cat.categoryName}</div>
-
-            <div className="muted mb-8">
-              Initial: ₹{cat.initialMonthlyBudget ?? 0} &nbsp;|&nbsp; Remaining: ₹{cat.remainingBudget ?? 0}
-              &nbsp;|&nbsp; Expenses Deducted: ₹{cat.expensesDeducted ?? 0}
-            </div>
-
-            <table className="data-table data-table--striped data-table--hover">
-              <thead>
-                <tr>
-                  <th className="t-right">Input Amount (₹)</th>
-                  <th className="t-right">Cumulative Budget (₹)</th>
-                  <th>Date</th>
-                  <th>Action Type</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(cat.history ?? []).map((h, idx) => (
-                  <tr key={`${cat.categoryId}-${idx}`}>
-                    <td className="t-right">{h.budgetSet}</td>
-                    <td className="t-right">{h.budgetAmountBecomes}</td>
-                    <td>{h.date}</td>
-                    <td>{h.operation}</td>
-                  </tr>
-                ))}
-                {(cat.history ?? []).length === 0 && (
+        history.map((cat) => {
+          const total = (cat.history ?? []).length;
+          const count = visible[cat.categoryId] ?? PAGE;
+          const rows = (cat.history ?? []).slice(0, count);
+          return (
+            <div key={cat.categoryId} className="mb-12">
+              <div className="muted mb-6">
+                {cat.categoryName}
+                <br />
+                Initial: ₹{cat.initialMonthlyBudget ?? 0} &nbsp;&nbsp; Remaining: ₹{cat.remainingBudget ?? 0} &nbsp;&nbsp;
+                Expenses Deducted: ₹{cat.expensesDeducted ?? 0}
+              </div>
+              <table className="data-table data-table--striped data-table--hover">
+                <thead>
                   <tr>
-                    <td colSpan={4} style={{ padding: 8, color: '#888' }}>
-                      No entries for this category.
-                    </td>
+                    <th>Input Amount (₹)</th>
+                    <th>Cumulative Budget (₹)</th>
+                    <th>Date</th>
+                    <th>Action Type</th>
+                    <th>Set By</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        ))
+                </thead>
+                <tbody>
+                  {rows.map((h, idx) => (
+                    <tr key={idx}>
+                      <td>{h.budgetSet}</td>
+                      <td>{h.budgetAmountBecomes}</td>
+                      <td>{h.date}</td>
+                      <td>{h.operation}</td>
+                      <td>{h.setBy}</td>
+                    </tr>
+                  ))}
+                  {total === 0 && (
+                    <tr>
+                      <td colSpan={5} className="t-center" style={{ color: '#888', padding: 12 }}>
+                        No entries for this category.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+              {count < total && (
+                <div className="t-center" style={{ marginTop: 8 }}>
+                  <button className="btn-pill" onClick={() => seeMore(cat.categoryId, total)}>See more</button>
+                </div>
+              )}
+            </div>
+          );
+        })
       )}
     </div>
   );

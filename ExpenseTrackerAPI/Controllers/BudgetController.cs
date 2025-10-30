@@ -27,7 +27,14 @@ namespace ExpenseTrackerAPI.Controllers
             _db = db; _userManager = userManager;
         }
 
-        public record SetBudgetRequest(int CategoryId, decimal InitialAmount, int Month, int Year);
+        // ===== Requests =====
+        public record SetBudgetRequest(int CategoryId, decimal InitialAmount, int Month, int Year, string SetByRole);
+        public record ClearOneRequest(int CategoryId, int Month, int Year, string SetByRole);
+        public record ClearMonthRequest(int Month, int Year, string SetByRole);
+
+        private static bool IsValidRole(string? r)
+            => string.Equals(r, "Admin", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(r, "Manager", StringComparison.OrdinalIgnoreCase);
 
         private static bool IsSetWindowOpen(DateTime utcNow, int month, int year)
         {
@@ -36,36 +43,37 @@ namespace ExpenseTrackerAPI.Controllers
             return nowIst.Day >= 1 && nowIst.Day <= 10;
         }
 
-        // ---------- SET (Top-up) ----------
+        // ---------- SET / TOP-UP ----------
         [HttpPost("set")]
         [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> SetBudget([FromBody] SetBudgetRequest req, CancellationToken ct)
         {
-            // Window rule currently disabled (kept as-is):
-            // if (!IsSetWindowOpen(DateTime.UtcNow, req.Month, req.Year))
-            //     return Forbid("Budget can only be set from the 1st to the 10th of the month.");
-
             var user = await _userManager.GetUserAsync(User);
             if (user == null) return Unauthorized();
+
+            if (!IsValidRole(req.SetByRole))
+                return BadRequest(new { code = "ROLE_REQUIRED", message = "Please select role as 'Admin' or 'Manager'." });
+
+            var actorRole = req.SetByRole.Equals("Admin", StringComparison.OrdinalIgnoreCase) ? "Admin" : "Manager";
+            bool isAdminCaller = User.IsInRole("Admin");
 
             var category = await _db.Categories.FindAsync(new object?[] { req.CategoryId }, ct);
             if (category == null) return NotFound(new { code = "CATEGORY_NOT_FOUND" });
 
-            // Enforce single manager per month (existing rule)
             var existingForMonth = await _db.Budgets
                 .Where(b => b.Month == req.Month && b.Year == req.Year)
                 .ToListAsync(ct);
 
-            if (existingForMonth.Any() && existingForMonth.First().CreatedByManagerId != user.Id)
+            if (existingForMonth.Any() && !isAdminCaller && existingForMonth.First().CreatedByManagerId != user.Id)
                 return Conflict(new { code = "BUDGET_CREATOR_CONFLICT", message = "Another manager already set budgets for this month." });
 
             var existing = await _db.Budgets.FirstOrDefaultAsync(b =>
                 b.CategoryId == req.CategoryId && b.Month == req.Month && b.Year == req.Year, ct);
 
             var nowUtc = DateTime.UtcNow;
+
             if (existing == null)
             {
-                // New bucket for month/category
                 var budget = new Budget
                 {
                     CategoryId = req.CategoryId,
@@ -75,12 +83,11 @@ namespace ExpenseTrackerAPI.Controllers
                     Year = req.Year,
                     CreatedDate = nowUtc,
                     CreatedByManagerId = user.Id,
-                    CreatedByManagerName = user.FullName ?? user.Email ?? "Manager"
+                    CreatedByManagerName = actorRole
                 };
                 _db.Budgets.Add(budget);
-                await _db.SaveChangesAsync(ct); // need BudgetId to log adjustment
+                await _db.SaveChangesAsync(ct);
 
-                // History: InitialSet
                 _db.BudgetAdjustments.Add(new BudgetAdjustment
                 {
                     BudgetId = budget.BudgetId,
@@ -92,21 +99,19 @@ namespace ExpenseTrackerAPI.Controllers
                     CumulativeRemainingAfter = budget.RemainingAmount,
                     Operation = "InitialSet",
                     ManagerId = user.Id,
-                    ManagerName = budget.CreatedByManagerName,
+                    ManagerName = actorRole,
                     CreatedAtUtc = nowUtc
                 });
             }
             else
             {
-                // Same manager only
-                if (existing.CreatedByManagerId != user.Id)
+                if (!isAdminCaller && existing.CreatedByManagerId != user.Id)
                     return Conflict(new { code = "BUDGET_CREATOR_CONFLICT", message = "Another manager created this budget." });
 
-                // ✅ TOP-UP RULE: add funds; do not recompute deductions
                 existing.InitialAmount += req.InitialAmount;
                 existing.RemainingAmount += req.InitialAmount;
+                existing.CreatedByManagerName = actorRole;
 
-                // History: TopUp
                 _db.BudgetAdjustments.Add(new BudgetAdjustment
                 {
                     BudgetId = existing.BudgetId,
@@ -118,7 +123,7 @@ namespace ExpenseTrackerAPI.Controllers
                     CumulativeRemainingAfter = existing.RemainingAmount,
                     Operation = "TopUp",
                     ManagerId = user.Id,
-                    ManagerName = existing.CreatedByManagerName,
+                    ManagerName = actorRole,
                     CreatedAtUtc = nowUtc
                 });
             }
@@ -127,7 +132,7 @@ namespace ExpenseTrackerAPI.Controllers
             return Ok();
         }
 
-        // ---------- HISTORY (existing summary list by month) ----------
+        // ---------- HISTORY (summary list by year) ----------
         [HttpGet("history")]
         [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> History([FromQuery] int? year, CancellationToken ct)
@@ -140,6 +145,7 @@ namespace ExpenseTrackerAPI.Controllers
                 .ToListAsync(ct);
 
             var nowIst = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, IST);
+
             var grouped = budgets.GroupBy(b => new { b.Month, b.Year })
                 .Select(g => new
                 {
@@ -157,10 +163,11 @@ namespace ExpenseTrackerAPI.Controllers
                         b.CreatedDate
                     })
                 });
+
             return Ok(grouped);
         }
 
-        // ---------- NEW: Detailed Budget History (month-wise) ----------
+        // ---------- Detailed Budget History (month-wise) ----------
         [HttpGet("history-detail")]
         [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> HistoryDetail([FromQuery] int month, [FromQuery] int year, CancellationToken ct)
@@ -176,7 +183,7 @@ namespace ExpenseTrackerAPI.Controllers
             var adjustments = await _db.BudgetAdjustments
                 .Where(t => t.Month == month && t.Year == year && budgetIds.Contains(t.BudgetId))
                 .OrderBy(t => t.CategoryId)
-                .ThenBy(t => t.CreatedAtUtc)
+                .ThenByDescending(t => t.CreatedAtUtc) // NEW: newest-first
                 .ToListAsync(ct);
 
             var result = budgets.Select(b => new
@@ -187,7 +194,7 @@ namespace ExpenseTrackerAPI.Controllers
                 Year = b.Year,
                 InitialMonthlyBudget = b.InitialAmount,
                 RemainingBudget = b.RemainingAmount,
-                ExpensesDeducted = b.InitialAmount - b.RemainingAmount, // derived
+                ExpensesDeducted = b.InitialAmount - b.RemainingAmount,
                 History = adjustments
                     .Where(t => t.BudgetId == b.BudgetId)
                     .Select(t => new
@@ -195,20 +202,146 @@ namespace ExpenseTrackerAPI.Controllers
                         BudgetSet = t.AmountSet,
                         BudgetAmountBecomes = t.CumulativeInitialAfter,
                         Date = TimeZoneInfo.ConvertTimeFromUtc(t.CreatedAtUtc, IST).ToString("dd/MM/yyyy"),
-                        Operation = t.Operation // InitialSet | TopUp | Reset
+                        Operation = t.Operation,
+                        SetBy = t.ManagerName
                     })
             });
 
             return Ok(result);
         }
 
-        // ---------- Window ----------
-        [HttpGet("window")]
+        // ---------- Clear ONE category budget ----------
+        [HttpPost("clear-one")]
         [Authorize(Policy = "RequireManager")]
-        public IActionResult Window([FromQuery] int month, [FromQuery] int year)
+        public async Task<IActionResult> ClearOne([FromBody] ClearOneRequest req, CancellationToken ct)
         {
-            var open = IsSetWindowOpen(DateTime.UtcNow, month, year);
-            return Ok(new { month, year, isSetWindowOpen = open });
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Unauthorized();
+
+            if (!IsValidRole(req.SetByRole))
+                return BadRequest(new { code = "ROLE_REQUIRED", message = "Please select role as 'Admin' or 'Manager'." });
+
+            var actorRole = req.SetByRole.Equals("Admin", StringComparison.OrdinalIgnoreCase) ? "Admin" : "Manager";
+            bool isAdminCaller = User.IsInRole("Admin");
+
+            var budget = await _db.Budgets
+                .Include(b => b.Category)
+                .FirstOrDefaultAsync(b => b.CategoryId == req.CategoryId && b.Month == req.Month && b.Year == req.Year, ct);
+
+            if (budget == null)
+                return NotFound(new { code = "BUDGET_NOT_FOUND", message = "No budget found for this category and month." });
+
+            if (!isAdminCaller && budget.CreatedByManagerId != user.Id)
+                return Conflict(new { code = "BUDGET_CREATOR_CONFLICT", message = "Another manager created this budget." });
+
+            budget.InitialAmount = 0m;
+            budget.RemainingAmount = 0m;
+            budget.CreatedByManagerName = actorRole; // update overview label
+
+            _db.BudgetAdjustments.Add(new BudgetAdjustment
+            {
+                BudgetId = budget.BudgetId,
+                CategoryId = budget.CategoryId,
+                Month = budget.Month,
+                Year = budget.Year,
+                AmountSet = 0m,
+                CumulativeInitialAfter = 0m,
+                CumulativeRemainingAfter = 0m,
+                Operation = "Reset",
+                ManagerId = user.Id,
+                ManagerName = actorRole,
+                CreatedAtUtc = DateTime.UtcNow
+            });
+
+            await _db.SaveChangesAsync(ct);
+            return Ok(new
+            {
+                message = $"Cleared budget for {budget.Category?.Name ?? "Category"} (Month {req.Month}, {req.Year}).",
+                budgetId = budget.BudgetId
+            });
+        }
+
+        // ---------- Clear ALL budgets for the month ----------
+        [HttpPost("clear-month")]
+        [Authorize(Policy = "RequireManager")]
+        public async Task<IActionResult> ClearMonth([FromBody] ClearMonthRequest req, CancellationToken ct)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Unauthorized();
+
+            if (!IsValidRole(req.SetByRole))
+                return BadRequest(new { code = "ROLE_REQUIRED", message = "Please select role as 'Admin' or 'Manager'." });
+
+            var actorRole = req.SetByRole.Equals("Admin", StringComparison.OrdinalIgnoreCase) ? "Admin" : "Manager";
+            bool isAdminCaller = User.IsInRole("Admin");
+
+            var budgets = await _db.Budgets
+                .Include(b => b.Category)
+                .Where(b => b.Month == req.Month && b.Year == req.Year)
+                .ToListAsync(ct);
+
+            if (!budgets.Any())
+                return Ok(new { message = "No budgets to clear for this month." });
+
+            var creatorId = budgets.First().CreatedByManagerId;
+            if (!isAdminCaller && creatorId != user.Id)
+                return Conflict(new { code = "BUDGET_CREATOR_CONFLICT", message = "Another manager created budgets for this month." });
+
+            foreach (var b in budgets)
+            {
+                b.InitialAmount = 0m;
+                b.RemainingAmount = 0m;
+                b.CreatedByManagerName = actorRole;
+
+                _db.BudgetAdjustments.Add(new BudgetAdjustment
+                {
+                    BudgetId = b.BudgetId,
+                    CategoryId = b.CategoryId,
+                    Month = b.Month,
+                    Year = b.Year,
+                    AmountSet = 0m,
+                    CumulativeInitialAfter = 0m,
+                    CumulativeRemainingAfter = 0m,
+                    Operation = "Reset",
+                    ManagerId = user.Id,
+                    ManagerName = actorRole,
+                    CreatedAtUtc = DateTime.UtcNow
+                });
+            }
+
+            await _db.SaveChangesAsync(ct);
+            return Ok(new { message = $"Cleared budgets for Month {req.Month}, {req.Year}.", count = budgets.Count });
+        }
+
+        // ---------- Manager overview ----------
+        [HttpGet("overview")]
+        [Authorize(Policy = "RequireManager")]
+        public async Task<IActionResult> ManagerOverview([FromQuery] int month, [FromQuery] int year, CancellationToken ct)
+        {
+            var budgets = await _db.Budgets
+                .Include(b => b.Category)
+                .Where(b => b.Month == month && b.Year == year)
+                .ToListAsync(ct);
+
+            var overview = budgets.Select(b =>
+            {
+                var initial = b.InitialAmount;
+                var remaining = b.RemainingAmount;
+                var deducted = initial - remaining;
+                var usage = initial == 0 ? 0 : Math.Round((double)(deducted / initial) * 100, 2);
+                return new
+                {
+                    b.CategoryId,
+                    CategoryName = b.Category.Name,
+                    InitialMonthlyBudget = initial,
+                    RemainingBudget = remaining,
+                    ExpensesDeducted = deducted,
+                    BudgetUsagePercent = usage,
+                    BudgetSetBy = b.CreatedByManagerName
+                };
+            }).OrderBy(x => x.CategoryName).ToList();
+
+            return Ok(overview);
         }
 
         // ---------- Admin overview ----------
@@ -257,133 +390,12 @@ namespace ExpenseTrackerAPI.Controllers
             return Ok(new { totals, categories });
         }
 
-        // ---------- Manager overview ----------
-        [HttpGet("overview")]
+        [HttpGet("window")]
         [Authorize(Policy = "RequireManager")]
-        public async Task<IActionResult> ManagerOverview([FromQuery] int month, [FromQuery] int year, CancellationToken ct)
+        public IActionResult Window([FromQuery] int month, [FromQuery] int year)
         {
-            var budgets = await _db.Budgets
-                .Include(b => b.Category)
-                .Where(b => b.Month == month && b.Year == year)
-                .ToListAsync(ct);
-
-            var overview = budgets.Select(b =>
-            {
-                var initial = b.InitialAmount;
-                var remaining = b.RemainingAmount;
-                var deducted = initial - remaining;
-                var usage = initial == 0 ? 0 : Math.Round((double)(deducted / initial) * 100, 2);
-                return new
-                {
-                    b.CategoryId,
-                    CategoryName = b.Category.Name,
-                    InitialMonthlyBudget = initial,
-                    RemainingBudget = remaining,
-                    ExpensesDeducted = deducted,
-                    BudgetUsagePercent = usage,
-                    BudgetSetBy = b.CreatedByManagerName
-                };
-            }).OrderBy(x => x.CategoryName).ToList();
-            return Ok(overview);
-        }
-
-        // ---------- NEW: Clear ONE category budget (reset to 0) ----------
-        public record ClearOneRequest(int CategoryId, int Month, int Year);
-
-        [HttpPost("clear-one")]
-        [Authorize(Policy = "RequireManager")]
-        public async Task<IActionResult> ClearOne([FromBody] ClearOneRequest req, CancellationToken ct)
-        {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null) return Unauthorized();
-
-            var budget = await _db.Budgets
-                .Include(b => b.Category)
-                .FirstOrDefaultAsync(b => b.CategoryId == req.CategoryId && b.Month == req.Month && b.Year == req.Year, ct);
-
-            if (budget == null)
-                return NotFound(new { code = "BUDGET_NOT_FOUND", message = "No budget found for this category and month." });
-
-            if (budget.CreatedByManagerId != user.Id)
-                return Conflict(new { code = "BUDGET_CREATOR_CONFLICT", message = "Another manager created this budget." });
-
-            budget.InitialAmount = 0m;
-            budget.RemainingAmount = 0m;
-
-            // History: Reset
-            _db.BudgetAdjustments.Add(new BudgetAdjustment
-            {
-                BudgetId = budget.BudgetId,
-                CategoryId = budget.CategoryId,
-                Month = budget.Month,
-                Year = budget.Year,
-                AmountSet = 0m,
-                CumulativeInitialAfter = 0m,
-                CumulativeRemainingAfter = 0m,
-                Operation = "Reset",
-                ManagerId = user.Id,
-                ManagerName = budget.CreatedByManagerName,
-                CreatedAtUtc = DateTime.UtcNow
-            });
-
-            await _db.SaveChangesAsync(ct);
-            return Ok(new
-            {
-                message = $"Cleared budget for {budget.Category?.Name ?? "Category"} (Month {req.Month}, {req.Year}).",
-                budgetId = budget.BudgetId
-            });
-        }
-
-        // ---------- NEW: Clear ALL budgets for the month (reset to 0) ----------
-        public record ClearMonthRequest(int Month, int Year);
-
-        [HttpPost("clear-month")]
-        [Authorize(Policy = "RequireManager")]
-        public async Task<IActionResult> ClearMonth([FromBody] ClearMonthRequest req, CancellationToken ct)
-        {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null) return Unauthorized();
-
-            var budgets = await _db.Budgets
-                .Include(b => b.Category)
-                .Where(b => b.Month == req.Month && b.Year == req.Year)
-                .ToListAsync(ct);
-
-            if (!budgets.Any())
-                return Ok(new { message = "No budgets to clear for this month." });
-
-            // Enforce your "same manager" rule for the month
-            var creatorId = budgets.First().CreatedByManagerId;
-            if (creatorId != user.Id)
-                return Conflict(new { code = "BUDGET_CREATOR_CONFLICT", message = "Another manager created budgets for this month." });
-
-            foreach (var b in budgets)
-            {
-                b.InitialAmount = 0m;
-                b.RemainingAmount = 0m;
-
-                _db.BudgetAdjustments.Add(new BudgetAdjustment
-                {
-                    BudgetId = b.BudgetId,
-                    CategoryId = b.CategoryId,
-                    Month = b.Month,
-                    Year = b.Year,
-                    AmountSet = 0m,
-                    CumulativeInitialAfter = 0m,
-                    CumulativeRemainingAfter = 0m,
-                    Operation = "Reset",
-                    ManagerId = user.Id,
-                    ManagerName = b.CreatedByManagerName,
-                    CreatedAtUtc = DateTime.UtcNow
-                });
-            }
-
-            await _db.SaveChangesAsync(ct);
-            return Ok(new
-            {
-                message = $"Cleared budgets for Month {req.Month}, {req.Year}.",
-                count = budgets.Count
-            });
+            var open = IsSetWindowOpen(DateTime.UtcNow, month, year);
+            return Ok(new { month, year, isSetWindowOpen = open });
         }
     }
 }

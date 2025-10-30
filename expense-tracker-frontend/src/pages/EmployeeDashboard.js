@@ -11,13 +11,13 @@ const categories = [
   { id: 5, name: 'Software & Subscriptions' }
 ];
 
+const PAGE = 10;
+
 function EmployeeDashboard() {
   const [expenses, setExpenses] = useState([]);
-
-  // 🔹 Notifications are now loaded from backend (not derived from expenses)
+  // 🔹 Notifications are loaded from backend (not derived from expenses)
   const [notifications, setNotifications] = useState([]);
   const [notifToast, setNotifToast] = useState('');
-
   const [formData, setFormData] = useState({
     title: '',
     amount: '',
@@ -28,13 +28,14 @@ function EmployeeDashboard() {
   const [username, setUsername] = useState('');
   const token = localStorage.getItem('token');
 
+  // NEW: paging for My Expenses
+  const [visible, setVisible] = useState(PAGE);
+
   useEffect(() => {
     const storedUsername = localStorage.getItem('username');
     if (storedUsername) setUsername(storedUsername);
     fetchExpenses();
     fetchEmployeeNotifications();
-
-    // Auto-refresh notifications every 30s (optional)
     const notifInterval = setInterval(fetchEmployeeNotifications, 30000);
     return () => clearInterval(notifInterval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -45,13 +46,22 @@ function EmployeeDashboard() {
       const res = await axios.get('http://localhost:5202/api/expenses/my', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setExpenses(res.data);
+      const list = Array.isArray(res.data) ? res.data : [];
+      // Newest first (by expenseDate; fallback to expenseId)
+      const sorted = [...list].sort((a, b) => {
+        const da = a?.expenseDate ? new Date(a.expenseDate).getTime() : 0;
+        const db = b?.expenseDate ? new Date(b.expenseDate).getTime() : 0;
+        if (db !== da) return db - da;
+        return (b?.expenseId ?? 0) - (a?.expenseId ?? 0);
+      });
+      setExpenses(sorted);
+      setVisible(PAGE);
     } catch (err) {
       console.error('Error fetching expenses:', err);
     }
   };
 
-  // 🔹 NEW: Load notifications from backend table
+  // 🔹 Load notifications from backend table
   const fetchEmployeeNotifications = async () => {
     try {
       const res = await axios.get('http://localhost:5202/api/notifications', {
@@ -69,7 +79,7 @@ function EmployeeDashboard() {
     }
   };
 
-  // 🔹 NEW: Clear on the backend, then reset UI + badge
+  // 🔹 Clear on the backend, then reset UI + badge
   const clearAllNotifications = async () => {
     try {
       await axios.post('http://localhost:5202/api/notifications/clear', null, {
@@ -103,7 +113,6 @@ function EmployeeDashboard() {
       setFormData({ title: '', amount: '', categoryId: '', expenseDate: '' });
       setSelectedDate('');
       fetchExpenses();
-
       // Optional: refresh notifications after submission
       fetchEmployeeNotifications();
     } catch (err) {
@@ -141,6 +150,8 @@ function EmployeeDashboard() {
     const mi = String(dt.getMinutes()).padStart(2, '0');
     return `${dd}/${mm}/${yy} ${hh}:${mi}`;
   };
+
+  const showMore = () => setVisible((v) => Math.min(v + PAGE, expenses.length));
 
   return (
     <div className="dashboard">
@@ -193,7 +204,7 @@ function EmployeeDashboard() {
                 required
               >
                 <option value="">Select Category</option>
-                {categories.map(cat => (
+                {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
@@ -222,18 +233,31 @@ function EmployeeDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {expenses.map((exp, index) => (
+                {expenses.slice(0, visible).map((exp, index) => (
                   <tr key={index}>
                     <td>{exp.title}</td>
-                    <td>₹{exp.amount.toFixed(2)}</td>
-                    <td>{categories.find(c => c.id === exp.categoryId)?.name || 'Unknown'}</td>
+                    <td>₹{Number(exp.amount ?? 0).toFixed(2)}</td>
+                    <td>{categories.find((c) => c.id === exp.categoryId)?.name ?? 'Unknown'}</td>
                     <td><span className={getStatusClass(exp.status)}>{exp.status}</span></td>
                     <td>{new Date(exp.expenseDate).toLocaleDateString()}</td>
-                    <td>{exp.managerComment || '-'}</td>
+                    <td>{exp.managerComment ?? '-'}</td>
                   </tr>
                 ))}
+                {expenses.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ color: '#888', padding: 12 }} className="t-center">
+                      No expenses yet.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
+
+            {visible < expenses.length && (
+              <div className="t-center" style={{ marginTop: 8 }}>
+                <button className="btn-pill" onClick={showMore}>See more</button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -253,15 +277,14 @@ function EmployeeDashboard() {
 
           {notifications.length > 0 ? (
             notifications.map((n, index) => {
-              // Class coloring: infer from message keywords if no explicit status
-              const msg = String(n.message || '').toLowerCase();
+              const msg = String(n.message ?? '').toLowerCase();
               const statusClass = msg.includes('reject')
                 ? 'notification-card rejected'
                 : msg.includes('approved')
                 ? 'notification-card approved'
-                : 'notification-card'; // neutral/pending-ish
+                : 'notification-card';
               return (
-                <div key={n.notificationId || index} className={statusClass}>
+                <div key={n.notificationId ?? index} className={statusClass}>
                   {n.message}
                   <div className="muted-time">{fmtDateTime(n.createdAt)}</div>
                 </div>
@@ -275,5 +298,4 @@ function EmployeeDashboard() {
     </div>
   );
 }
-
 export default EmployeeDashboard;

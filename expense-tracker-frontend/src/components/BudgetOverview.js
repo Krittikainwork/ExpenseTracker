@@ -1,76 +1,71 @@
-// src/components/BudgetOverview.js
 import '../styles/manager-theme.css';
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import '../styles/dashboard-theme.css';
 
-const BudgetOverview = ({ month, year, onNavigateToHistory, refreshSignal = 0 }) => {
+const RoleModal = ({ title, roles = ['Manager', 'Admin'], onCancel, onConfirm }) => {
+  const [selected, setSelected] = useState(roles[0] || '');
+  const confirm = () => { if (!selected) return; onConfirm(selected); };
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: '#fff', padding: 16, borderRadius: 8, minWidth: 320 }}>
+        <div className="card-title" style={{ marginBottom: 12 }}>{title}</div>
+        <label>Role:</label>
+        <select value={selected} onChange={(e) => setSelected(e.target.value)} required>
+          {roles.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <div className="toolbar" style={{ marginTop: 12 }}>
+          <button onClick={onCancel}>Cancel</button>
+          <button onClick={confirm} style={{ marginLeft: 'auto' }}>Confirm</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BudgetOverview = ({ month, year, onNavigateToHistory, refreshSignal = 0, roles = ['Manager', 'Admin'] }) => {
   const [overview, setOverview] = useState([]);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
+  const [modal, setModal] = useState(null); // { type: 'one'|'month', categoryId?, categoryName? }
 
-  useEffect(() => {
-    fetchOverview();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month, year, refreshSignal]);
+  useEffect(() => { fetchOverview(); /* eslint-disable-next-line */ }, [month, year, refreshSignal]);
 
   const fetchOverview = async () => {
-    setLoading(true);
-    setToast('');
+    setLoading(true); setToast('');
     try {
       const res = await axios.get(`/api/budget/overview?month=${month}&year=${year}`);
       setOverview(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Error fetching budget overview:', err);
       setToast('Failed to load overview. Try again.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  const clearOne = async (categoryId, categoryName) => {
-    const ok = window.confirm(`Clear budget for "${categoryName}"?\nThis sets Initial, Remaining, and derived Expenses to 0 for ${month}/${year}.`);
-    if (!ok) return;
+  const clearOne = (categoryId, categoryName) => { setModal({ type: 'one', categoryId, categoryName }); };
+  const clearMonth = () => { setModal({ type: 'month' }); };
+
+  const handleConfirm = async (selectedRole) => {
+    const setByRole = selectedRole;
     try {
-      await axios.post('/api/budget/clear-one', { categoryId, month, year });
-      setToast(`Cleared budget for ${categoryName}.`);
+      if (modal?.type === 'one') {
+        await axios.post('/api/budget/clear-one', { categoryId: modal.categoryId, month, year, setByRole });
+        setToast(`Cleared budget for ${modal.categoryName}.`);
+      } else {
+        await axios.post('/api/budget/clear-month', { month, year, setByRole });
+        setToast(`Cleared budgets for ${month}/${year}.`);
+      }
+      setModal(null);
       fetchOverview();
     } catch (err) {
-      console.error('Error clearing category budget:', err);
+      console.error('Error clearing budget:', err);
       setToast('Failed to clear budget. Please try again.');
     }
   };
 
-  const clearMonth = async () => {
-    const ok = window.confirm(`Clear ALL category budgets for ${month}/${year}?\nThis sets Initial, Remaining, and derived Expenses to 0.`);
-    if (!ok) return;
-    try {
-      await axios.post('/api/budget/clear-month', { month, year });
-      setToast(`Cleared budgets for ${month}/${year}.`);
-      fetchOverview();
-    } catch (err) {
-      console.error('Error clearing month budgets:', err);
-      setToast('Failed to clear month budgets. Please try again.');
-    }
-  };
-
-  const handleViewHistory = () => {
-    if (onNavigateToHistory) onNavigateToHistory(month, year);
-    else window.location.assign(`/budget/history?month=${month}&year=${year}`);
-  };
-
   return (
     <div>
-      <div className="toolbar mb-8">
-        <div className="muted">Live Budget Overview — {month}/{year}</div>
-        <div style={{ marginLeft: 'auto' }} className="toolbar">
-          <button onClick={clearMonth}>Clear All (Month)</button>
-          <button onClick={handleViewHistory}>View Budget History</button>
-        </div>
-      </div>
-
       {toast && <div className="mb-8" style={{ color: '#0a7' }}>{toast}</div>}
-
       {loading ? (
         <div>Loading…</div>
       ) : (
@@ -110,6 +105,15 @@ const BudgetOverview = ({ month, year, onNavigateToHistory, refreshSignal = 0 })
             )}
           </tbody>
         </table>
+      )}
+
+      {modal && (
+        <RoleModal
+          title={modal.type === 'one' ? `Cleared by (category: ${modal.categoryName})` : 'Cleared by (All categories for month)'}
+          roles={roles}
+          onCancel={() => setModal(null)}
+          onConfirm={handleConfirm}
+        />
       )}
     </div>
   );

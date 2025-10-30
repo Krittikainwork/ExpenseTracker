@@ -278,3 +278,279 @@
   color: white;
 }
 .btn--danger:hover:not(:disabled) { background: #dc2626; }
+/* Layout */
+.layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.layout__content {
+  display: grid;
+  grid-template-columns: 1fr 320px; /* main + sidebar width */
+  gap: 24px;
+  padding: 16px 24px;
+}
+
+/* Topbar */
+.topbar {
+  display: flex;
+  align-items: center;
+  padding: 12px 24px;
+  color: #fff;
+}
+.topbar--gradient {
+  background: linear-gradient(90deg, #1b66ff 0%, #5a8cff 100%);
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+.brand {
+  font-weight: 700;
+  font-size: 20px;
+}
+.welcome {
+  margin-left: 12px;
+  opacity: 0.95;
+}
+.topbar__actions {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+}
+.icon-btn {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.icon-btn .badge {
+  display: inline-block;
+  background: #ff4757;
+  color: #fff;
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 999px;
+  margin-left: 6px;
+}
+
+/* Cards & toolbar */
+.card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+  padding: 16px;
+}
+.card-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.toolbar .muted {
+  color: #666;
+}
+
+/* Sidebar (Notifications) */
+.sidebar {
+  position: sticky;
+  top: 12px;
+  height: calc(100vh - 140px);
+}
+.notif-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.notif-list {
+  margin-top: 8px;
+  overflow-y: auto;
+}
+
+/* Buttons (blue pill) */
+.btn-pill {
+  background: linear-gradient(90deg, #1b66ff 0%, #3f7cff 100%);
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-pill--light {
+  background: linear-gradient(90deg, #e9f0ff 0%, #f3f7ff 100%);
+  color: #1b66ff;
+}
+/* Ensure the right sidebar card never gets cut; only its list scrolls */
+.sidebar {
+  position: sticky;
+  top: 12px;
+  align-self: start;
+}
+
+.notif-card {
+  display: flex;
+  flex-direction: column;
+  /* Reserve viewport height minus some safe headroom for topbar + paddings */
+  max-height: calc(100vh - 140px);
+}
+
+.notif-card .toolbar {
+  flex: 0 0 auto;
+}
+
+.notif-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto; /* scroll the list, not the page */
+}
+
+/* Make sure container doesn't clip */
+.layout__content {
+  overflow: visible;
+}
+
+/* Layout and sidebar safety */
+.layout { display: flex; flex-direction: column; min-height: 100vh; }
+.layout__content { display: grid; grid-template-columns: 1fr 320px; gap: 24px; padding: 16px 24px; overflow: visible; }
+.topbar { display: flex; align-items: center; padding: 12px 24px; color: #fff; }
+.topbar--gradient { background: linear-gradient(90deg, #1b66ff 0%, #5a8cff 100%); border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
+.brand { font-weight: 700; font-size: 20px; }
+.welcome { margin-left: 12px; opacity: 0.95; }
+.topbar__actions { margin-left: auto; display: flex; gap: 10px; }
+.icon-btn { background: rgba(255,255,255,0.15); color: #fff; border: none; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.icon-btn .badge { display: inline-block; background: #ff4757; color: #fff; font-size: 11px; padding: 0 6px; border-radius: 999px; margin-left: 6px; }
+
+.card { background: #fff; border-radius: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.06); padding: 16px; }
+.card-title { font-weight: 600; margin-bottom: 8px; }
+.toolbar { display: flex; align-items: center; gap: 12px; }
+.toolbar .muted { color: #666; }
+
+.sidebar { position: sticky; top: 12px; align-self: start; }
+.notif-card { display: flex; flex-direction: column; max-height: calc(100vh - 140px); }
+.notif-card .toolbar { flex: 0 0 auto; }
+.notif-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+
+.btn-pill { background: linear-gradient(90deg, #1b66ff 0%, #3f7cff 100%); color: #fff; border: none; padding: 8px 16px; border-radius: 999px; cursor: pointer; font-weight: 600; }
+.btn-pill--light { background: linear-gradient(90deg, #e9f0ff 0%, #f3f7ff 100%); color: #1b66ff; }
+/* ==== Bell button: stronger contrast, crisp badge, no visual overlap ==== */
+.icon-btn--bell {
+  /* slightly more opaque background than regular icon buttons */
+  background: rgba(255, 255, 255, 0.85);
+  color: #1b3dff;            /* high-contrast blue for the bell icon */
+  position: relative;         /* for precise badge placement */
+  border: 1px solid rgba(27, 61, 255, 0.18);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+/* bump icon size inside bell for clearer visibility */
+.icon-btn--bell svg {
+  width: 18px;
+  height: 18px;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,0.15)); /* subtle edge definition on the icon */
+}
+
+/* crisp, elevated badge that doesn’t “cover” the bell */
+.icon-btn--bell .badge {
+  position: absolute;
+  top: -6px;          /* sit just above the icon */
+  right: -6px;        /* pull slightly outside for clarity */
+  background: #ff3b30; /* iOS-like red for visibility */
+  color: #fff;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 18px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 2px solid #fff;  /* white ring separates badge from bell */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  z-index: 2;              /* ensure it sits above icon, not behind */
+}
+
+/* Optional: a hover state for a bit of tactile feedback (no layout change) */
+.icon-btn--bell:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-0.5px);
+}
+/* ==== Bell button: stronger contrast, crisp badge, no visual overlap ==== */
+.icon-btn--bell {
+  /* slightly more opaque background than regular icon buttons */
+  background: rgba(255, 255, 255, 0.85);
+  color: #1b3dff;            /* high-contrast blue for the bell icon */
+  position: relative;         /* for precise badge placement */
+  border: 1px solid rgba(27, 61, 255, 0.18);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+/* bump icon size inside bell for clearer visibility */
+.icon-btn--bell svg {
+  width: 18px;
+  height: 18px;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,0.15)); /* subtle edge definition on the icon */
+}
+
+/* crisp, elevated badge that doesn’t “cover” the bell */
+.icon-btn--bell .badge {
+  position: absolute;
+  top: -6px;          /* sit just above the icon */
+  right: -6px;        /* pull slightly outside for clarity */
+  background: #ff3b30; /* iOS-like red for visibility */
+  color: #fff;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 18px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 2px solid #fff;  /* white ring separates badge from bell */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  z-index: 2;              /* ensure it sits above icon, not behind */
+}
+
+/* Optional: a hover state for a bit of tactile feedback (no layout change) */
+.icon-btn--bell:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-0.5px);
+}
+.icon-btn--bell {
+  background: rgba(255, 255, 255, 0.85);
+  color: #1b3dff;
+  position: relative;
+  border: 1px solid rgba(27, 61, 255, 0.18);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.icon-btn--bell svg {
+  width: 18px;
+  height: 18px;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,0.15));
+}
+
+.icon-btn--bell .badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #ff3b30;
+  color: #fff;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 18px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  z-index: 2;
+}
+
+.icon-btn--bell:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-0.5px);
+}
