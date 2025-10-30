@@ -13,7 +13,7 @@ using System.Reflection;
 
 [assembly: Microsoft.Extensions.Configuration.UserSecrets.UserSecretsIdAttribute("b747a328-4405-4647-846a-d07512171f50")]
 [assembly: System.Reflection.AssemblyCompanyAttribute("ExpenseTrackerAPI")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
 [assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f3dfe62ab5b6f17e23d397d0c6544d4ef571a465")]
 [assembly: System.Reflection.AssemblyProductAttribute("ExpenseTrackerAPI")]

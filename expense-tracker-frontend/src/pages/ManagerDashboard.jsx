@@ -24,7 +24,7 @@ const ManagerDashboard = () => {
   };
 
   return (
-    <div className={`manager-root ${styles.container}`}>
+    <div className={`manager-root ${styles.container}`} style={{ gap: '32px' }}>
       {/* ===== LEFT (main) ===== */}
       <div className={styles.main}>
         {/* ===== Topbar ===== */}
@@ -80,7 +80,7 @@ const ManagerDashboard = () => {
         </div>
 
         {/* ===== Month / Year Bar ===== */}
-        <div className="card mb-16">
+        <div className="card mb-20">
           <div
             className="card__body"
             style={{ display: 'flex', gap: 12, alignItems: 'center' }}
@@ -123,27 +123,29 @@ const ManagerDashboard = () => {
         </div>
 
         {/* Pending Requests */}
-        <div className="card mb-16">
-          <div className="card__header">Pending Expense Requests</div>
+        <div className="card mb-20">
+          <div className="card__header" style={{ fontSize: '1.3rem' }}>
+            Pending Expense Requests
+          </div>
           <div className="card__body">
             <PendingRequests month={month} year={year} />
           </div>
         </div>
 
         {/* Budget Form */}
-        <div className="card mb-16">
-          <div className="card__header">Set Budget</div>
+        <div className="card mb-20">
+          <div className="card__header" style={{ fontSize: '1.3rem' }}>
+            Set Budget
+          </div>
           <div className="card__body">
             <BudgetForm month={month} year={year} onBudgetSet={onBudgetSet} />
           </div>
         </div>
 
         {/* Budget Overview / History */}
-        <div className="card mb-16">
-          <div className="card__header">
-            {showHistory
-              ? 'Budget History Timeline'
-              : 'Live Budget Overview'}
+        <div className="card mb-20">
+          <div className="card__header" style={{ fontSize: '1.3rem' }}>
+            {showHistory ? 'Budget History Timeline' : 'Live Budget Overview'}
           </div>
           <div className="card__body">
             {showHistory ? (
@@ -164,8 +166,10 @@ const ManagerDashboard = () => {
         </div>
 
         {/* Processed History */}
-        <div className="card mb-16">
-          <div className="card__header">Processed Expense History</div>
+        <div className="card mb-20" style={{ overflowX: 'auto' }}>
+          <div className="card__header" style={{ fontSize: '1.3rem' }}>
+            Processed Expense History
+          </div>
           <div className="card__body">
             <ProcessedHistory />
           </div>

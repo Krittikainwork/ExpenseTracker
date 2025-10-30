@@ -63,7 +63,9 @@ public async Task<IActionResult> Login(LoginDto dto)
         new Claim(JwtRegisteredClaimNames.Email, user.Email ?? ""),
         new Claim(ClaimTypes.NameIdentifier, user.Id),
         new Claim(ClaimTypes.Name, user.UserName ?? ""),
-        new Claim(ClaimTypes.Role, role)
+        new Claim(ClaimTypes.Role, role),
+        new Claim("role", role) 
+
     };
 
     var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));

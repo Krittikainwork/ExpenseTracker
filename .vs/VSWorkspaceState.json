@@ -1,0 +1,10 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\ExpenseTrackerAPI",
+    "\\ExpenseTrackerAPI\\Controllers",
+    "\\ExpenseTrackerAPI\\Models"
+  ],
+  "SelectedNode": "\\ExpenseTrackerAPI\\Controllers\\AuthController.cs",
+  "PreviewInSolutionExplorer": false
+}
