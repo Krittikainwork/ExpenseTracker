@@ -80,6 +80,15 @@ builder.Services.AddAuthorization(opt =>
     opt.AddPolicy("RequireManager", p => p.RequireRole("Manager", "Admin"));
     opt.AddPolicy("RequireAdmin", p => p.RequireRole("Admin"));
 });
+// Services DI registration
+builder.Services.AddScoped<ExpenseTrackerAPI.Services.Contracts.ICategoryService, ExpenseTrackerAPI.Services.CategoryService>();
+builder.Services.AddScoped<ExpenseTrackerAPI.Services.Contracts.IExpensesService, ExpenseTrackerAPI.Services.ExpensesService>();
+builder.Services.AddScoped<ExpenseTrackerAPI.Services.Contracts.INotificationQueryService, ExpenseTrackerAPI.Services.NotificationQueryService>();
+builder.Services.AddScoped<ExpenseTrackerAPI.Services.Contracts.IReimbursementsService, ExpenseTrackerAPI.Services.ReimbursementsService>();
+builder.Services.AddScoped<ExpenseTrackerAPI.Services.Contracts.IBudgetService, ExpenseTrackerAPI.Services.BudgetService>();
+
+// Existing notification producer (keep as you already had)
+builder.Services.AddScoped<ExpenseTrackerAPI.Services.NotificationService>();
 
 var app = builder.Build();
 

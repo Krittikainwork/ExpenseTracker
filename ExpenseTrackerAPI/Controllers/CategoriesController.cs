@@ -1,7 +1,8 @@
-using ExpenseTrackerAPI.Data;
+using ExpenseTrackerAPI.Services.Contracts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ExpenseTrackerAPI.Controllers
 {
@@ -9,18 +10,14 @@ namespace ExpenseTrackerAPI.Controllers
     [Route("api/categories")]
     public class CategoriesController : ControllerBase
     {
-        private readonly AppDbContext _db;
-        public CategoriesController(AppDbContext db) => _db = db;
+        private readonly ICategoryService _service;
+        public CategoriesController(ICategoryService service) => _service = service;
 
-        // Anyone authenticated can list categories; adjust if you want anonymous
         [HttpGet]
-        [Authorize] 
+        [Authorize]
         public async Task<IActionResult> GetAll(CancellationToken ct)
         {
-            var items = await _db.Categories
-                .OrderBy(c => c.Name)
-                .Select(c => new { c.Id, c.Name })
-                .ToListAsync(ct);
+            var items = await _service.GetAllAsync(ct);
             return Ok(items);
         }
     }

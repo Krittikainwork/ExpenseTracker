@@ -1,10 +1,10 @@
-// Controllers/NotificationsController.cs
-using ExpenseTrackerAPI.Data;
+using ExpenseTrackerAPI.Services.Contracts;
 using ExpenseTrackerAPI.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ExpenseTrackerAPI.Controllers
 {
@@ -12,24 +12,21 @@ namespace ExpenseTrackerAPI.Controllers
     [Route("api/notifications")]
     public class NotificationsController : ControllerBase
     {
-        private readonly AppDbContext _db;
+        private readonly INotificationQueryService _svc;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public NotificationsController(AppDbContext db, UserManager<ApplicationUser> userManager)
+        public NotificationsController(INotificationQueryService svc, UserManager<ApplicationUser> userManager)
         {
-            _db = db; _userManager = userManager;
+            _svc = svc;
+            _userManager = userManager;
         }
 
         [HttpGet]
-        [Authorize] // same as your GET
+        [Authorize]
         public async Task<IActionResult> Get(CancellationToken ct)
         {
             var userId = _userManager.GetUserId(User);
-            var items = await _db.NotificationRecords
-                .Where(n => n.RecipientId == userId)
-                .OrderByDescending(n => n.CreatedAt)
-                .Select(n => new { n.NotificationId, n.Message, n.IsRead, n.CreatedAt })
-                .ToListAsync(ct);
+            var items = await _svc.GetForUserAsync(userId!, ct);
             return Ok(items);
         }
 
@@ -38,29 +35,17 @@ namespace ExpenseTrackerAPI.Controllers
         public async Task<IActionResult> MarkRead(int id, CancellationToken ct)
         {
             var userId = _userManager.GetUserId(User);
-            var n = await _db.NotificationRecords
-                .FirstOrDefaultAsync(x => x.NotificationId == id && x.RecipientId == userId, ct);
-            if (n == null) return NotFound();
-
-            n.IsRead = true;
-            await _db.SaveChangesAsync(ct);
+            var ok = await _svc.MarkReadAsync(userId!, id, ct);
+            if (!ok) return NotFound();
             return Ok();
         }
 
-        // ✅ NEW: Clear all notifications for the current user (hard delete)
         [HttpPost("clear")]
-        [Authorize] // keep same policy so it works with your token
+        [Authorize]
         public async Task<IActionResult> ClearAll(CancellationToken ct)
         {
             var userId = _userManager.GetUserId(User);
-            var toDelete = await _db.NotificationRecords
-                .Where(n => n.RecipientId == userId)
-                .ToListAsync(ct);
-
-            if (toDelete.Count == 0) return Ok(new { cleared = 0 });
-
-            _db.NotificationRecords.RemoveRange(toDelete);
-            var cleared = await _db.SaveChangesAsync(ct);
+            var cleared = await _svc.ClearAllAsync(userId!, ct);
             return Ok(new { cleared });
         }
     }
