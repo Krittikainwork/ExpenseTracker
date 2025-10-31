@@ -217,7 +217,7 @@ function EmployeeDashboard() {
                   <tr key={index}>
                     <td>{exp.title}</td>
                     <td>₹{Number(exp.amount ?? 0).toFixed(2)}</td>
-                    <td>{categories.find((c) => c.id === exp.categoryId)?.name ?? 'Unknown'}</td>
+                    <td>{exp.categoryName ?? (categories.find((c) => c.id === exp.categoryId)?.name ?? 'Unknown')}</td>
                     <td><span className={getStatusClass(exp.status)}>{exp.status}</span></td>
                     <td>{new Date(exp.expenseDate).toLocaleDateString()}</td>
                     <td>{exp.managerComment ?? '-'}</td>

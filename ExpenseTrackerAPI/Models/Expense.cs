@@ -22,6 +22,8 @@ namespace ExpenseTrackerAPI.Models
 
         [Required]
         public int CategoryId { get; set; }
+        public string? ReceiptFileName { get; set; }    // saved file name under wwwroot/uploads/receipts
+        public string? ReceiptContentType { get; set; } // optional: for hinting image/pdf/doc
 
         // 👇👇  THIS IS THE NAVIGATION PROPERTY YOUR CONTROLLER USES
         [ForeignKey(nameof(CategoryId))]

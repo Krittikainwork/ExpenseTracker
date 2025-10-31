@@ -554,3 +554,62 @@
   background: rgba(255, 255, 255, 0.95);
   transform: translateY(-0.5px);
 }
+/* Proof cell styling to avoid cutting layouts */
+.proof-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 160px;
+  white-space: nowrap;
+}
+.proof-cell img,
+.proof-thumb {
+  max-width: 120px;
+  max-height: 80px;
+  border-radius: 6px;
+  object-fit: cover;
+  display: block;
+}
+.proof-link {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #eef3ff;
+  color: #1b66ff;
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Ensure data cells don’t squish */
+.data-table td,
+.data-table th {
+  vertical-align: top;
+}
+.proof-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 160px;
+  white-space: nowrap;
+}
+.proof-cell img,
+.proof-thumb {
+  max-width: 120px;
+  max-height: 80px;
+  border-radius: 6px;
+  object-fit: cover;
+  display: block;
+}
+.proof-link {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #eef3ff;
+  color: #1b66ff;
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.data-table td,
+.data-table th { vertical-align: top; }

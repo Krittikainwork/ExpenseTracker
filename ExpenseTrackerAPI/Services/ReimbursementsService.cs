@@ -77,11 +77,12 @@ namespace ExpenseTrackerAPI.Services
             };
             _db.Reimbursements.Add(reimb);
 
-            // Employee notification with UTR via producer
+            // ✅ Notification must use Title (not Category)
+            // “Your 'Celebrations' expense has been reimbursed having transaction ID 3245611”
             var employeeUser = await _db.Users.FirstOrDefaultAsync(u => u.EmployeeId == expense.EmployeeId, ct);
             if (employeeUser != null)
             {
-                var message = $"Your {expense.Category?.Name ?? "expense"} expense has been reimbursed having transaction ID {reimb.Reference}.";
+                var message = $"Your expense '{expense.Title}' has been reimbursed having transaction ID {reimb.Reference}.";
                 await _notify.CreateForUserAsync(employeeUser.Id, message, ct);
             }
 
