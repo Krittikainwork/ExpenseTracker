@@ -1,82 +1,102 @@
+// src/components/BudgetForm.js
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import {
+  Stack, TextField, Select, MenuItem, Button, Alert, Typography,
+  FormControl, InputLabel
+} from '@mui/material';
 
-const BudgetForm = ({ month, year, onBudgetSet, roles = ['Manager', 'Admin'] }) => {
+export default function BudgetForm({ month, year, onBudgetSet, roles = ['Manager'] }) {
+  const [categoryId, setCategoryId] = useState('');
+  const [initialAmount, setInitialAmount] = useState('');
+  const [toast, setToast] = useState('');
+
+  // Categories for dropdown
   const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [amount, setAmount] = useState('');
-  const [setByRole, setSetByRole] = useState(roles[0] || 'Manager');
-  const [message, setMessage] = useState('');
+  const [catsError, setCatsError] = useState('');
 
-  useEffect(() => { fetchCategories(); }, []);
-  useEffect(() => { setSetByRole(roles[0] || 'Manager'); }, [roles]);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        setCatsError('');
+        const res = await axios.get('/api/categories');
+        if (!alive) return;
+        const items = Array.isArray(res.data) ? res.data : [];
+        setCategories(items);
+      } catch (err) {
+        setCatsError('Failed to load categories.');
+        console.error('GET /api/categories failed:', err?.response || err);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
-  const fetchCategories = async () => {
+  const submitBudget = async () => {
+    setToast('');
     try {
-      const res = await axios.get('/api/categories');
-      setCategories(res.data);
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-      setMessage('Failed to load categories.');
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault(); setMessage('');
-    if (!selectedCategory || !amount) {
-      setMessage('Please select a category and enter an amount.');
-      return;
-    }
-    if (!setByRole || !['Manager', 'Admin'].includes(setByRole)) {
-      setMessage('Please select role as Manager or Admin.');
-      return;
-    }
-    try {
-      await axios.post('/api/budget/set', {
-        categoryId: parseInt(selectedCategory, 10),
-        initialAmount: parseFloat(amount),
-        month, year,
-        setByRole,
+      // EXACT shape: SetBudgetRequest (CategoryId, InitialAmount, Month, Year, SetByRole)
+      const payload = {
+        CategoryId: Number(categoryId),
+        InitialAmount: Number(initialAmount),
+        Month: month,
+        Year: year,
+        SetByRole: roles[0],
+      };
+      await axios.post('/api/budget/set', payload, {
+        headers: { 'Content-Type': 'application/json' }, // Authorization is already on axios.defaults
       });
-      setMessage('Budget set successfully!');
-      setAmount(''); setSelectedCategory(''); setSetByRole(roles[0] || 'Manager');
-      onBudgetSet && onBudgetSet();
+      setToast('Budget set.');
+      onBudgetSet?.();
+      setCategoryId('');
+      setInitialAmount('');
     } catch (err) {
-      console.error('Error setting budget:', err);
-      setMessage('Failed to set budget. Please try again.');
+      console.error('POST /api/budget/set failed:', err?.response || err);
+      setToast(
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        (typeof err?.response?.data === 'string' ? err.response.data : 'Failed to set budget.')
+      );
     }
   };
 
-  const singleRole = roles.length === 1;
+  const canSubmit = categoryId && initialAmount !== '';
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 8, maxWidth: 420 }}>
-      <label>Category:</label>
-      <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} required>
-        <option value="">Select Category</option>
-        {categories.map((category) => (
-          <option key={category.categoryId || category.id} value={category.categoryId || category.id}>
-            {category.name}
-          </option>
-        ))}
-      </select>
+    <Stack spacing={2}>
+      {toast && <Alert severity={toast.startsWith('Failed') ? 'error' : 'success'}>{toast}</Alert>}
+      <Typography variant="subtitle2">Month {month} / Year {year}</Typography>
 
-      <label>Amount (₹):</label>
-      <input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+      {/* Category dropdown (replaces "Category ID" textbox) */}
+      <FormControl fullWidth>
+        <InputLabel id="bf-category-label">Category</InputLabel>
+        <Select
+          labelId="bf-category-label"
+          label="Category"
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+        >
+          {categories.map((c) => (
+            <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      {catsError && <Alert severity="error">{catsError}</Alert>}
 
-      <label>Set by:</label>
-      {singleRole ? (
-        <div className="pill">{roles[0]}</div>
-      ) : (
-        <select value={setByRole} onChange={(e) => setSetByRole(e.target.value)} required>
-          {roles.map((r) => (<option key={r} value={r}>{r}</option>))}
-        </select>
-      )}
+      <TextField
+        label="Initial Amount"
+        type="number"
+        value={initialAmount}
+        onChange={(e) => setInitialAmount(e.target.value)}
+        fullWidth
+      />
 
-      <button type="submit">Add Budget</button>
-      {message && <div style={{ marginTop: 6, color: '#0a7' }}>{message}</div>}
-    </form>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Select value={roles[0]} disabled size="small">
+          {roles.map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+        </Select>
+        <Button onClick={submitBudget} disabled={!canSubmit}>Set Budget</Button>
+      </Stack>
+    </Stack>
   );
-};
-
-export default BudgetForm;
+}

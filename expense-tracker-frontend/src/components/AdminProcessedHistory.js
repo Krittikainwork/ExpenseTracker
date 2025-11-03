@@ -1,175 +1,127 @@
-import '../styles/manager-theme.css';
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import '../styles/dashboard-theme.css';
+import dayjs from 'dayjs';
+import { Box, Paper, TextField, Button, Stack } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 
-const money = (n) =>
-  (n ?? 0).toLocaleString('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 2,
-  });
-
-// PAGE size for "See more"
-const PAGE = 10;
-
-const AdminProcessedHistory = () => {
+export default function AdminProcessedHistory() {
   const [rows, setRows] = useState([]);
-  const [map, setMap] = useState([]); // reimbursement map
-  const [comment, setComment] = useState({});
-  const [toast, setToast] = useState('');
+  const [reimbList, setReimbList] = useState([]);
+  const [comment, setComment] = useState('');
+  const [targetId, setTargetId] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  // NEW: visible count for "See more"
-  const [visible, setVisible] = useState(PAGE);
 
   const load = async () => {
     setLoading(true);
     try {
-      // processed items (existing endpoint)
       const res = await axios.get('/api/expenses/processed');
-      const list = Array.isArray(res.data) ? res.data : [];
-      // newest first by dateSubmitted, fallback to expenseId
-      const sorted = [...list].sort((a, b) => {
-        const da = a?.dateSubmitted ? new Date(a.dateSubmitted).getTime() : 0;
-        const db = b?.dateSubmitted ? new Date(b.dateSubmitted).getTime() : 0;
-        if (db !== da) return db - da;
-        return (b?.expenseId ?? 0) - (a?.expenseId ?? 0);
-      });
-      setRows(sorted);
-
-      // reimbursement map (global) for status column
+      const data = Array.isArray(res.data) ? res.data : [];
+      setRows(data);
       const mres = await axios.get('/api/reimbursements/map-all');
-      const m = Array.isArray(mres.data) ? mres.data : [];
-      setMap(m);
-
-      // reset paging after refresh
-      setVisible(PAGE);
-    } catch (e) {
-      console.error(e);
-      setToast('Failed to load processed history.');
-    } finally {
-      setLoading(false);
-    }
+      setReimbList(Array.isArray(mres.data) ? mres.data : []);
+    } catch { setRows([]); setReimbList([]); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  const mapById = useMemo(() => {
-    const d = {};
-    map.forEach((x) => {
-      d[x.expenseId] = x;
-    });
-    return d;
-  }, [map]);
+  const reimbById = useMemo(() => {
+    const d = {}; reimbList.forEach((x) => { d[x.expenseId] = x; }); return d;
+  }, [reimbList]);
 
-  const postComment = async (expenseId) => {
-    const text = (comment[expenseId] ?? '').trim();
-    if (!text) return;
+  const postComment = async () => {
+    const text = (comment ?? '').trim();
+    if (!text || !targetId) return;
     try {
-      await axios.put(`/api/expenses/comment/${expenseId}`, { comment: text });
-      setComment((c) => ({ ...c, [expenseId]: '' }));
-      setToast('Comment posted.');
-      load();
-    } catch (e) {
-      console.error(e);
-      setToast('Failed to post comment.');
-    }
+      await axios.put(`/api/expenses/comment/${targetId}`, { comment: text });
+      setComment(''); setTargetId(null); load();
+    } catch {}
   };
 
-  const reimbCell = (e) => {
-    const m = mapById[e.expenseId];
-    if (m?.paidDateUtc) {
-      const dd = new Date(m.paidDateUtc);
-      const s = `${String(dd.getDate()).padStart(2, '0')}/${String(dd.getMonth() + 1).padStart(2, '0')}/${dd.getFullYear()}`;
-      return <span className="badge badge--ok">Paid&nbsp;({s})</span>;
-    }
-    if (String(e.status ?? '').toLowerCase() === 'approved') {
-      return <span className="badge badge--warn">Pending</span>;
-    }
-    return '—';
+  const statusColor = (s) => {
+    const v = String(s || '').toLowerCase();
+    if (v === 'approved') return '#2e7d32';      // green
+    if (v === 'rejected') return '#d32f2f';      // red
+    if (v === 'pending')  return '#ed6c02';      // orange
+    return 'inherit';
   };
 
-  // NEW: handler for "See more"
-  const showMore = () => setVisible((v) => Math.min(v + PAGE, rows.length));
+  const columns = [
+    { field: 'employeeName', headerName: 'Employee Name', flex: 1, minWidth: 160 },
+    { field: 'employeeID', headerName: 'Employee ID', width: 130 },
+    { field: 'title', headerName: 'Title', flex: 1, minWidth: 160 },
+    {
+      field: 'amount', headerName: 'Amount (₹)', width: 150,
+      renderCell: (p) => {
+        const v = p?.row?.amount;
+        return `₹${Number(v ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      },
+    },
+    { field: 'category', headerName: 'Category', width: 160 },
+    { field: 'dateSubmitted', headerName: 'Date Submitted', width: 160,
+      renderCell: (p) => {
+        const v = p?.row?.dateSubmitted;
+        return v ? dayjs(v).format('DD/MM/YYYY') : '—';
+      }
+    },
+    {
+      field: 'status', headerName: 'Status', width: 120,
+      renderCell: (p) => {
+        const s = p?.row?.status ?? '—';
+        return <span style={{ fontWeight: 600, color: statusColor(s) }}>{s}</span>;
+      }
+    },
+    { field: 'manager', headerName: 'Manager', width: 160 },
+    { field: 'managerComment', headerName: 'Manager Comment', flex: 1, minWidth: 180 },
+    {
+      field: 'reimb', headerName: 'Reimbursement Status', width: 180, sortable: false,
+      renderCell: (params) => {
+        const e = params?.row; if (!e) return null;
+        const m = reimbById[e.expenseId];
+        if (m?.paidDateUtc) {
+          return <span style={{ fontWeight: 600, color: '#2e7d32' }}>
+            {`Paid (${dayjs(m.paidDateUtc).format('DD/MM/YYYY')})`}
+          </span>;
+        }
+        if ((e.status || '').toLowerCase() === 'approved') {
+          return <span style={{ fontWeight: 600, color: '#ed6c02' }}>Pending</span>;
+        }
+        return '—';
+      },
+    },
+    { field: 'adminComment', headerName: 'Admin Comment', flex: 1, minWidth: 160 },
+    {
+      field: 'action', headerName: 'Action', width: 280, sortable: false,
+      renderCell: (params) => {
+        const id = params?.row?.expenseId;
+        return (
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
+            <TextField
+              size="small" placeholder="Add a comment"
+              value={id === targetId ? comment : ''}
+              onChange={(e) => { setTargetId(id); setComment(e.target.value); }}
+              sx={{ flex: 1 }}
+            />
+            <Button size="small" onClick={postComment}>Post</Button>
+          </Stack>
+        );
+      },
+    },
+  ];
 
   return (
-    <div>
-      {toast && <div className="mb-8" style={{ color: '#0a7' }}>{toast}</div>}
-      {loading ? (
-        <div>Loading…</div>
-      ) : (
-        <>
-          <table className="data-table data-table--striped data-table--hover">
-            <thead>
-              <tr>
-                <th>Employee Name</th>
-                <th>Employee ID</th>
-                <th>Title</th>
-                <th>Amount (₹)</th>
-                <th>Category</th>
-                <th>Date Submitted</th>
-                <th>Status</th>
-                <th>Manager</th>
-                <th>Manager Comment</th>
-                <th>Reimbursement Status</th> {/* status column retained */}
-                <th>Admin Comment</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length > 0 ? (
-                // NEW: slice by visible count
-                rows.slice(0, visible).map((e) => (
-                  <tr key={e.expenseId}>
-                    <td>{e.employeeName}</td>
-                    <td>{e.employeeID}</td>
-                    <td>{e.title}</td>
-                    <td>{money(e.amount)}</td>
-                    <td>{e.category}</td>
-                    <td>{new Date(e.dateSubmitted).toLocaleDateString()}</td>
-                    <td>{e.status}</td>
-                    <td>{e.manager ?? '-'}</td>
-                    <td>{e.managerComment ?? '-'}</td>
-                    <td>{reimbCell(e)}</td>
-                    <td>{e.adminComment ?? '-'}</td>
-                    <td>
-                      <input
-                        value={comment[e.expenseId] ?? ''}
-                        onChange={(ev) =>
-                          setComment((prev) => ({ ...prev, [e.expenseId]: ev.target.value }))
-                        }
-                        placeholder="Add a comment"
-                        style={{ width: 160 }}
-                      />
-                      <button onClick={() => postComment(e.expenseId)} style={{ marginLeft: 8 }}>
-                        Post
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={12} className="t-center" style={{ color: '#888', padding: 12 }}>
-                    No processed items.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-
-          {/* NEW: See more button */}
-          {visible < rows.length && (
-            <div className="t-center" style={{ marginTop: 8 }}>
-              <button className="btn-pill" onClick={showMore}>See more</button>
-            </div>
-          )}
-        </>
-      )}
-    </div>
+    <Paper sx={{ p: 0 }}>
+      <Box sx={{ height: 560, width: '100%', overflowX: 'auto' }}>
+        <DataGrid
+          rows={rows}
+          columns={columns}
+          getRowId={(r) => r.expenseId}
+          loading={loading}
+          pageSizeOptions={[10, 25, 50]}
+          initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+          disableColumnMenu
+        />
+      </Box>
+    </Paper>
   );
-};
-
-export default AdminProcessedHistory;
+}

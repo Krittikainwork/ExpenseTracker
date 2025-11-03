@@ -1,23 +1,27 @@
 // src/components/common/LogoutButton.jsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { Button } from '@mui/material';
 
-const LogoutButton = () => {
+export default function LogoutButton() {
   const navigate = useNavigate();
 
-  const logout = () => {
-    // Keep this consistent with your auth handling
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user'); // if you store user
-    // If you have an AuthContext, also clear it there.
-    navigate('/login');
+  const logout = async () => {
+    try {
+      await axios.post('/api/auth/logout').catch(() => {});
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      localStorage.removeItem('username');
+      delete axios.defaults.headers.common['Authorization'];
+      navigate('/login', { replace: true });
+    }
   };
 
   return (
-    <button className="btn" onClick={logout} title="Logout">
+    <Button variant="outlined" color="error" onClick={logout} title="Logout">
       Logout
-    </button>
+    </Button>
   );
-};
-
-export default LogoutButton;
+}

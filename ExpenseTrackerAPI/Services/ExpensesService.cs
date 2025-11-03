@@ -76,7 +76,7 @@ namespace ExpenseTrackerAPI.Services
                 .OrderBy(e => e.DateSubmitted)
                 .Select(e => new PendingExpenseRow(
                     e.ExpenseId, e.EmployeeName, e.EmployeeId, e.Title,
-                    e.Amount, e.Category.Name, e.DateSubmitted))
+                    e.Amount, e.Category.Name,  e.ExpenseDate,e.DateSubmitted))
                 .ToListAsync(ct);
 
             return rows;

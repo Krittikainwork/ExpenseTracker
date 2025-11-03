@@ -1,170 +1,126 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import dayjs from 'dayjs';
+import { Paper, Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Stack } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
 
-const formatINR = (v) =>
-  `₹${Number(v ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-const TXModal = ({ open, onClose, onSave }) => {
+function MarkPaidDialog({ open, onClose, onSave }) {
   const [ref, setRef] = useState('');
   const [amt, setAmt] = useState('');
-  if (!open) return null;
-
+  useEffect(() => { if (!open) { setRef(''); setAmt(''); } }, [open]);
   const canConfirm = ref.trim().length > 0 && Number(amt) > 0;
-
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: '#fff', borderRadius: 8, padding: 16, minWidth: 360 }}>
-        <div className="card-title" style={{ marginBottom: 12 }}>Mark as Reimbursed</div>
-        <label>Transaction ID (UTR)</label>
-        <input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="UTR / TXN ID" required />
-        <label style={{ marginTop: 8 }}>Amount</label>
-        <input value={amt} onChange={(e) => setAmt(e.target.value)} type="number" min="0.01" step="0.01" placeholder="Enter amount" required />
-        <div className="toolbar" style={{ marginTop: 12 }}>
-          <button onClick={onClose}>Cancel</button>
-          <button
-            style={{ marginLeft: 'auto' }}
-            disabled={!canConfirm}
-            onClick={() => onSave({ reference: ref.trim(), amount: Number(amt) })}
-          >
-            Confirm
-          </button>
-        </div>
-      </div>
-    </div>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Mark as Reimbursed</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField label="Transaction ID (UTR)" value={ref} onChange={(e) => setRef(e.target.value)} fullWidth />
+          <TextField label="Amount" value={amt} onChange={(e) => setAmt(e.target.value)} type="number" inputProps={{ min: 0.01, step: 0.01 }} fullWidth />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} color="inherit">Cancel</Button>
+        <Button disabled={!canConfirm} onClick={() => onSave({ reference: ref.trim(), amount: Number(amt) })}>
+          Confirm
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
-};
+}
 
-const PAGE = 10;
-
-const AdminReimbursementPending = ({ month, year }) => {
+export default function AdminReimbursementPending({ month, year }) {
+  const PAGE = 10;
   const [processed, setProcessed] = useState([]);
   const [map, setMap] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState('');
   const [modal, setModal] = useState(null); // {expenseId}
-  const [visible, setVisible] = useState(PAGE);
 
   const load = async () => {
-    setLoading(true); setToast('');
+    setLoading(true);
     try {
       const res1 = await axios.get('/api/expenses/processed');
       const list = Array.isArray(res1.data) ? res1.data : [];
       const res2 = await axios.get('/api/reimbursements/map', { params: { month, year } });
       const m = Array.isArray(res2.data) ? res2.data : [];
-
-      const sorted = [...list].sort((a, b) => {
-        const da = a?.dateSubmitted ? new Date(a.dateSubmitted).getTime() : 0;
-        const db = b?.dateSubmitted ? new Date(b.dateSubmitted).getTime() : 0;
-        if (db !== da) return db - da;
-        return (b?.expenseId ?? 0) - (a?.expenseId ?? 0);
-      });
-
-      setProcessed(sorted);
-      setMap(m);
-      setVisible(PAGE);
-    } catch (e) {
-      console.error(e);
-      setToast('Failed to load reimbursement data.');
-    } finally {
-      setLoading(false);
-    }
+      setProcessed(list); setMap(m);
+    } catch { setProcessed([]); setMap([]); }
+    finally { setLoading(false); }
   };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month, year]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [month, year]);
 
   const mapById = useMemo(() => {
-    const d = {};
-    map.forEach((x) => { d[x.expenseId] = x; });
-    return d;
+    const d = {}; map.forEach((x) => { d[x.expenseId] = x; }); return d;
   }, [map]);
 
-  const pending = useMemo(() => {
+  const pendingRows = useMemo(() => {
     return processed.filter((e) => {
-      const approved = String(e.status ?? '').toLowerCase() === 'approved';
-      const reimb = !!mapById[e.expenseId];
+      const approved = String(e?.status ?? '').toLowerCase() === 'approved';
+      const reimb = !!mapById[e?.expenseId];
       return approved && !reimb;
     });
   }, [processed, mapById]);
 
   const markPaid = async (expenseId, payload) => {
-    try {
-      await axios.put(`/api/reimbursements/mark-paid/${expenseId}`, payload);
-      setToast('Marked as reimbursed.');
-      setModal(null);
-      load();
-    } catch (e) {
-      console.error(e);
-      setToast('Failed to mark reimbursed.');
-    }
+    try { await axios.put(`/api/reimbursements/mark-paid/${expenseId}`, payload); setModal(null); load(); }
+    catch {}
   };
 
+  const statusColor = (s) => {
+    const v = String(s || '').toLowerCase();
+    if (v === 'approved') return '#2e7d32';      // green
+    if (v === 'rejected') return '#d32f2f';      // red
+    if (v === 'pending')  return '#ed6c02';      // orange
+    return 'inherit';
+  };
+
+  const columns = [
+    { field: 'employeeName', headerName: 'Employee', flex: 1, minWidth: 160 },
+    { field: 'title', headerName: 'Title', flex: 1, minWidth: 160 },
+    {
+      field: 'amount', headerName: 'Amount (₹)', width: 150,
+      renderCell: (p) => {
+        const v = p?.row?.amount;
+        return `₹${Number(v ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      },
+    },
+    { field: 'category', headerName: 'Category', width: 160 },
+    { field: 'dateSubmitted', headerName: 'Date Submitted', width: 160,
+      renderCell: (p) => {
+        const v = p?.row?.dateSubmitted;
+        return v ? dayjs(v).format('DD/MM/YYYY') : '—';
+      }
+    },
+    {
+      field: 'status', headerName: 'Status', width: 120,
+      renderCell: (p) => {
+        const s = p?.row?.status ?? '—';
+        return <span style={{ fontWeight: 600, color: statusColor(s) }}>{s}</span>;
+      }
+    },
+    {
+      field: 'action', headerName: 'Action', width: 160, sortable: false,
+      renderCell: (params) =>
+        params?.row ? (
+          <Button size="small" onClick={() => setModal({ expenseId: params.row.expenseId })}>Mark Paid</Button>
+        ) : null,
+    },
+  ];
+
   return (
-    <div>
-      {toast && <div className="mb-8" style={{ color: '#0a7' }}>{toast}</div>}
-
-      {loading ? (
-        <div>Loading…</div>
-      ) : (
-        <>
-          <table className="data-table data-table--striped data-table--hover">
-            <thead>
-              <tr>
-                <th>Employee</th>
-                <th>Title</th>
-                <th>Amount (₹)</th>
-                <th>Category</th>
-                <th>Date Submitted</th>
-                <th>Status</th>
-                <th className="t-center">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pending.length > 0 ? (
-                pending.slice(0, visible).map((e) => (
-                  <tr key={e.expenseId}>
-                    <td>{e.employeeName ?? '—'}</td>
-                    <td>{e.title ?? '—'}</td>
-                    <td>{formatINR(e.amount)}</td>
-                    <td>{e.category ?? e.categoryName ?? '—'}</td>
-                    <td>{e.dateSubmitted ? new Date(e.dateSubmitted).toLocaleDateString() : '—'}</td>
-                    <td>{e.status}</td>
-                    <td className="t-center">
-                      <button className="btn-pill" onClick={() => setModal({ expenseId: e.expenseId })}>
-                        Mark Paid
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} className="t-center" style={{ color: '#888', padding: 12 }}>
-                    No pending reimbursements for {month}/{year}.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-
-          {visible < pending.length && (
-            <div className="t-center" style={{ marginTop: 8 }}>
-              <button className="btn-pill" onClick={() => setVisible((v) => Math.min(v + PAGE, pending.length))}>
-                See more
-              </button>
-            </div>
-          )}
-
-          <TXModal
-            open={!!modal}
-            onClose={() => setModal(null)}
-            onSave={(payload) => markPaid(modal.expenseId, payload)}
-          />
-        </>
-      )}
-    </div>
+    <Paper sx={{ p: 0 }}>
+      <Box sx={{ height: 520, overflowX: 'auto' }}>
+        <DataGrid
+          rows={pendingRows}
+          columns={columns}
+          getRowId={(r) => r.expenseId}
+          loading={loading}
+          pageSizeOptions={[10, 25, 50]}
+          initialState={{ pagination: { paginationModel: { pageSize: PAGE } } }}
+          disableColumnMenu
+        />
+      </Box>
+      <MarkPaidDialog open={!!modal} onClose={() => setModal(null)}
+        onSave={(payload) => modal && markPaid(modal.expenseId, payload)} />
+    </Paper>
   );
-};
-
-export default AdminReimbursementPending;
+}

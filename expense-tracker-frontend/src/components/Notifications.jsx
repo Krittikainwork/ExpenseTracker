@@ -1,29 +1,28 @@
+// src/components/Notifications.jsx
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import '../styles/manager-theme.css';
-import '../styles/dashboard-theme.css';
+import dayjs from 'dayjs';
+import {
+  Paper, Stack, Typography, Button, List, ListItem, ListItemText, Alert
+} from '@mui/material';
 
-const fmtDateTime = (d) => {
-  if (!d) return '';
-  const dt = new Date(d);
-  const dd = String(dt.getDate()).padStart(2, '0');
-  const mm = String(dt.getMonth() + 1).padStart(2, '0');
-  const yy = dt.getFullYear();
-  const hh = String(dt.getHours()).padStart(2, '0');
-  const mi = String(dt.getMinutes()).padStart(2, '0');
-  return `${dd}/${mm}/${yy} ${hh}:${mi}`;
-};
+const fmt = (d) => (d ? dayjs(d).format('DD/MM/YYYY HH:mm') : '');
 
-const Notifications = ({ onCount }) => {
+export default function Notifications({ onCount, onCountChange }) {
   const [items, setItems] = useState([]);
   const [toast, setToast] = useState('');
+
+  const emitCount = (n) => {
+    if (typeof onCount === 'function') onCount(n);
+    if (typeof onCountChange === 'function') onCountChange(n); // compat with older prop name
+  };
 
   const load = async () => {
     try {
       const res = await axios.get('/api/notifications');
       const list = Array.isArray(res.data) ? res.data : [];
       setItems(list);
-      onCount && onCount(list.length);
+      emitCount(list.length);
     } catch (err) {
       console.error('GET /api/notifications failed:', err);
       setToast('Failed to load notifications.');
@@ -34,7 +33,7 @@ const Notifications = ({ onCount }) => {
     try {
       await axios.post('/api/notifications/clear');
       setItems([]);
-      onCount && onCount(0);
+      emitCount(0);
       setToast('Notifications cleared.');
     } catch (err) {
       console.error('POST /api/notifications/clear failed:', err);
@@ -44,37 +43,42 @@ const Notifications = ({ onCount }) => {
 
   useEffect(() => {
     load();
-    // listen for manager-clear-notifications event fired from ManagerDashboard
     const handler = () => clearAll();
     window.addEventListener('manager-clear-notifications', handler);
     return () => window.removeEventListener('manager-clear-notifications', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div className="notif-card">
-      {toast && <div className="mb-8 text-info">{toast}</div>}
+    <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+        <Typography variant="h6" fontWeight={700}>Notifications</Typography>
+        <Button variant="outlined" size="small" onClick={clearAll}>Clear All</Button>
+      </Stack>
+
+      {toast && <Alert sx={{ mb: 1 }} severity={toast.startsWith('Failed') ? 'error' : 'success'}>{toast}</Alert>}
 
       {items.length === 0 ? (
-        <p className="muted">No new notifications</p>
+        <Typography color="text.secondary">No new notifications</Typography>
       ) : (
-        <div className="notif-list">
+        <List dense sx={{ overflowY: 'auto' }}>
           {items.map((n) => {
             const msg = String(n.message || '').toLowerCase();
-            const rowClass =
-              msg.includes('rejected') ? 'notification-card rejected' :
-              msg.includes('approved') ? 'notification-card approved' :
-              'notification-card';
+            const severity =
+              msg.includes('rejected') ? 'error' :
+              msg.includes('approved') ? 'success' : 'info';
             return (
-              <div key={n.notificationId} className={rowClass}>
-                <div>{n.message}</div>
-                <div className="muted-time">{fmtDateTime(n.createdAt)}</div>
-              </div>
+              <ListItem key={n.notificationId} sx={{ borderBottom: '1px solid #eee' }}>
+                <ListItemText
+                  primary={n.message}
+                  secondary={fmt(n.createdAt)}
+                  primaryTypographyProps={{ sx: { color: severity === 'error' ? 'error.main' : severity === 'success' ? 'success.main' : 'text.primary', fontWeight: 500 } }}
+                />
+              </ListItem>
             );
           })}
-        </div>
+        </List>
       )}
-    </div>
+    </Paper>
   );
-};
-
-export default Notifications;
+}

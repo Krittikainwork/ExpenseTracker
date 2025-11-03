@@ -1,25 +1,29 @@
+// src/components/Logout.js
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Button } from '@mui/material';
 
-const Logout = () => {
+export default function Logout() {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
-      await axios.post('/api/auth/logout');
-      navigate('/login');
-    } catch (err) {
-      console.error('Logout failed:', err);
-      alert('Logout failed. Please try again.');
+      // Best-effort server logout (non-blocking if API doesn’t exist)
+      await axios.post('/api/auth/logout').catch(() => {});
+    } finally {
+      // Clear client state
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      localStorage.removeItem('username');
+      delete axios.defaults.headers.common['Authorization'];
+      navigate('/login', { replace: true });
     }
   };
 
   return (
-    <button className="logout-button" onClick={handleLogout}>
+    <Button variant="outlined" color="error" onClick={handleLogout}>
       Logout
-    </button>
+    </Button>
   );
-};
-
-export default Logout;
+}

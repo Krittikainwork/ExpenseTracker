@@ -19,7 +19,7 @@ namespace ExpenseTrackerAPI.Services.Contracts
 
     public record PendingExpenseRow(
         int ExpenseId, string EmployeeName, string EmployeeID,
-        string Title, decimal Amount, string Category, DateTime DateSubmitted
+        string Title, decimal Amount, string Category,DateTime ExpenseDate,  DateTime DateSubmitted
     );
 
     public record ProcessedExpenseRow(

@@ -1,96 +1,114 @@
-import '../styles/manager-theme.css';
+// src/components/common/AdminBudgetHistory.js
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import '../styles/dashboard-theme.css';
+import { Paper, Typography, Alert, Box, Table, TableHead, TableRow, TableCell, TableBody, Button, Stack } from '@mui/material';
 
-const AdminBudgetHistory = ({ month, year }) => {
+const PAGE = 5;
+
+export default function AdminBudgetHistory({ month, year, onBack }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
-  const [visible, setVisible] = useState({});
-  const PAGE = 5;
+  const [visible, setVisible] = useState({}); // { categoryId: count }
 
-  useEffect(() => { if (!month || !year) return; fetchHistory(); /* eslint-disable-next-line */ }, [month, year]);
+  useEffect(() => {
+    if (!month || !year) return;
+    fetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month, year]);
 
   const fetchHistory = async () => {
-    setLoading(true); setToast('');
+    setLoading(true);
+    setToast('');
     try {
       const res = await axios.get('/api/budget/history-detail', { params: { month, year } });
       const data = Array.isArray(res.data) ? res.data : [];
       setHistory(data);
+      // initial visible rows per category
       const initial = {};
-      data.forEach(cat => { initial[cat.categoryId] = PAGE; });
+      data.forEach((cat) => { initial[cat.categoryId] = PAGE; });
       setVisible(initial);
     } catch (err) {
       console.error('Error fetching admin budget history:', err);
       setToast('Failed to load budget history. Try again.');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const seeMore = (categoryId, total) => {
-    setVisible(v => ({ ...v, [categoryId]: Math.min((v[categoryId] || PAGE) + PAGE, total) }));
+    setVisible((v) => ({ ...v, [categoryId]: Math.min((v[categoryId] ?? PAGE) + PAGE, total) }));
   };
 
   return (
-    <div>
-      {toast && <div className="mb-8" style={{ color: '#0a7' }}>{toast}</div>}
+    <Box>
+      {/* Header + Back */}
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+        <Typography variant="h6" fontWeight={700}>
+          Budget History Timeline — {month}/{year}
+        </Typography>
+        <Button variant="outlined" onClick={() => (onBack ? onBack() : window.history.back())}>
+          ← Back to Overview
+        </Button>
+      </Stack>
+
+      {toast && <Alert severity={toast.includes('Failed') ? 'error' : 'success'} sx={{ mb: 2 }}>{toast}</Alert>}
+
       {loading ? (
-        <div>Loading…</div>
+        <Typography>Loading…</Typography>
       ) : history.length === 0 ? (
-        <div>No history found for {month}/{year}.</div>
+        <Typography>No history found for {month}/{year}.</Typography>
       ) : (
         history.map((cat) => {
           const total = (cat.history ?? []).length;
           const count = visible[cat.categoryId] ?? PAGE;
           const rows = (cat.history ?? []).slice(0, count);
           return (
-            <div key={cat.categoryId} className="mb-12">
-              <div className="muted mb-6">
-                {cat.categoryName}
-                <br />
-                Initial: ₹{cat.initialMonthlyBudget ?? 0} &nbsp;&nbsp; Remaining: ₹{cat.remainingBudget ?? 0} &nbsp;&nbsp;
-                Expenses Deducted: ₹{cat.expensesDeducted ?? 0}
-              </div>
-              <table className="data-table data-table--striped data-table--hover">
-                <thead>
-                  <tr>
-                    <th>Input Amount (₹)</th>
-                    <th>Cumulative Budget (₹)</th>
-                    <th>Date</th>
-                    <th>Action Type</th>
-                    <th>Set By</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <Paper key={cat.categoryId} sx={{ p: 2, mb: 2 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
+                <Typography variant="subtitle1" fontWeight={700}>{cat.categoryName}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Initial: ₹{cat.initialMonthlyBudget ?? 0}{'  '}
+                  Remaining: ₹{cat.remainingBudget ?? 0}{'  '}
+                  Expenses Deducted: ₹{cat.expensesDeducted ?? 0}
+                </Typography>
+              </Stack>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Input Amount (₹)</TableCell>
+                    <TableCell>Cumulative Budget (₹)</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Action Type</TableCell>
+                    <TableCell>Set By</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
                   {rows.map((h, idx) => (
-                    <tr key={idx}>
-                      <td>{h.budgetSet}</td>
-                      <td>{h.budgetAmountBecomes}</td>
-                      <td>{h.date}</td>
-                      <td>{h.operation}</td>
-                      <td>{h.setBy}</td>
-                    </tr>
+                    <TableRow key={idx}>
+                      <TableCell>₹{h.budgetSet}</TableCell>
+                      <TableCell>₹{h.budgetAmountBecomes}</TableCell>
+                      <TableCell>{h.date}</TableCell>
+                      <TableCell>{h.operation}</TableCell>
+                      <TableCell>{h.setBy}</TableCell>
+                    </TableRow>
                   ))}
                   {total === 0 && (
-                    <tr>
-                      <td colSpan={5} className="t-center" style={{ color: '#888', padding: 12 }}>
-                        No entries for this category.
-                      </td>
-                    </tr>
+                    <TableRow>
+                      <TableCell colSpan={5}>No entries for this category.</TableCell>
+                    </TableRow>
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
               {count < total && (
-                <div className="t-center" style={{ marginTop: 8 }}>
-                  <button className="btn-pill" onClick={() => seeMore(cat.categoryId, total)}>See more</button>
-                </div>
+                <Box sx={{ textAlign: 'center', mt: 1 }}>
+                  <Button variant="outlined" onClick={() => seeMore(cat.categoryId, total)}>See more</Button>
+                </Box>
               )}
-            </div>
+            </Paper>
           );
         })
       )}
-    </div>
+    </Box>
   );
-};
-
-export default AdminBudgetHistory;
+}

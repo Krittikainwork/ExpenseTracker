@@ -1,91 +1,92 @@
 // src/pages/EmployeeDashboard.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { FaBell, FaMoneyBillWave, FaSignOutAlt, FaTrash } from 'react-icons/fa';
-import './Dashboard.css';
+import dayjs from 'dayjs';
+import {
+  AppBar, Toolbar, Typography, Container, Paper, Stack, Box,
+  Button, TextField, MenuItem, Alert, IconButton, Badge
+} from '@mui/material';
+import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
+import { DataGrid } from '@mui/x-data-grid';
+import Logout from '../components/Logout';
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
+// Submission form categories (unchanged)
 const categories = [
   { id: 1, name: 'Travel' },
   { id: 2, name: 'Meals' },
   { id: 3, name: 'Supplies' },
   { id: 4, name: 'Lodging' },
-  { id: 5, name: 'Software & Subscriptions' }
+  { id: 5, name: 'Software & Subscriptions' },
 ];
 
-const PAGE = 10;
-
-function EmployeeDashboard() {
-  const [expenses, setExpenses] = useState([]);
-  const [reimbMap, setReimbMap] = useState({}); // { expenseId: { paidDateUtc, reference } }
+export default function EmployeeDashboard() {
+  const [rows, setRows] = useState([]);
+  const [reimbMap, setReimbMap] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [notifToast, setNotifToast] = useState('');
-  const [formData, setFormData] = useState({ title: '', amount: '', categoryId: '', expenseDate: '' });
-  const [selectedDate, setSelectedDate] = useState('');
-  const [username, setUsername] = useState('');
+  const [form, setForm] = useState({ title: '', amount: '', categoryId: '', expenseDate: '' });
+  const [pickedDate, setPickedDate] = useState(null);
+  const notifRef = useRef(null);
   const token = localStorage.getItem('token');
 
-  const [visible, setVisible] = useState(PAGE);
-
-  useEffect(() => {
-    const storedUsername = localStorage.getItem('username');
-    if (storedUsername) setUsername(storedUsername);
-    fetchExpenses();
-    fetchEmployeeNotifications();
-    fetchReimbStatus();
-    const notifInterval = setInterval(fetchEmployeeNotifications, 30000);
-    return () => clearInterval(notifInterval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchExpenses = async () => {
+  // --- Load "My Expenses" (bind exact backend keys) ---
+  const loadMy = async () => {
     try {
-      const res = await axios.get('http://localhost:5202/api/expenses/my', {
+      const res = await axios.get('/api/expenses/my', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const list = Array.isArray(res.data) ? res.data : [];
-      const sorted = [...list].sort((a, b) => {
-        const da = a?.expenseDate ? new Date(a.expenseDate).getTime() : 0;
-        const db = b?.expenseDate ? new Date(b.expenseDate).getTime() : 0;
-        if (db !== da) return db - da;
+      const data = Array.isArray(res.data) ? res.data : [];
+      // Latest first by dateSubmitted (fallback expenseDate), then expenseId
+      const sorted = [...data].sort((a, b) => {
+        const ad = a?.dateSubmitted ? Date.parse(a.dateSubmitted)
+                  : (a?.expenseDate ? Date.parse(a.expenseDate) : -Infinity);
+        const bd = b?.dateSubmitted ? Date.parse(b.dateSubmitted)
+                  : (b?.expenseDate ? Date.parse(b.expenseDate) : -Infinity);
+        if (bd !== ad) return bd - ad;
         return (b?.expenseId ?? 0) - (a?.expenseId ?? 0);
       });
-      setExpenses(sorted);
-      setVisible(PAGE);
+      setRows(sorted);
     } catch (err) {
-      console.error('Error fetching expenses:', err);
+      console.error('GET /api/expenses/my failed', err);
+      setRows([]);
     }
   };
 
-  const fetchReimbStatus = async () => {
+  // --- Load reimbursement map (kept) ---
+  const loadReimb = async () => {
     try {
-      const res = await axios.get('http://localhost:5202/api/reimbursements/status/my', {
+      const res = await axios.get('/api/reimbursements/status/my', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const list = Array.isArray(res.data) ? res.data : [];
       const map = {};
-      list.forEach((x) => { map[x.expenseId] = { paidDateUtc: x.paidDateUtc, reference: x.reference }; });
+      list.forEach((x) => { map[x.expenseId] = x; });
       setReimbMap(map);
     } catch (err) {
       console.error('GET /api/reimbursements/status/my failed:', err);
     }
   };
 
-  const fetchEmployeeNotifications = async () => {
+  // --- Load notifications ---
+  const loadNotifs = async () => {
     try {
-      const res = await axios.get('http://localhost:5202/api/notifications', {
+      const res = await axios.get('/api/notifications', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const list = Array.isArray(res.data) ? res.data : [];
-      setNotifications(list);
+      setNotifications(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('GET /api/notifications failed:', err);
       setNotifToast('Failed to load notifications.');
     }
   };
 
+  // --- Clear all notifications ---
   const clearAllNotifications = async () => {
     try {
-      await axios.post('http://localhost:5202/api/notifications/clear', null, {
+      await axios.post('/api/notifications/clear', null, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setNotifications([]);
@@ -96,186 +97,207 @@ function EmployeeDashboard() {
     }
   };
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  useEffect(() => {
+    loadMy();
+    loadReimb();
+    loadNotifs();
+    const id = setInterval(loadNotifs, 30000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // --- Submit new expense (endpoint unchanged) ---
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const formattedDate = new Date(selectedDate).toISOString();
-    const payload = { ...formData, expenseDate: formattedDate };
+
+    if (!form.title || !form.amount || !form.categoryId || !pickedDate) {
+      alert('Please fill Title, Amount, Category, and Expense Date.');
+      return;
+    }
+
+    // ✅ Send UTC at midnight to satisfy timestamptz and keep date the same
+    // Example: "2025-11-02T00:00:00Z"
+    const expenseDateUtcMidnight =
+      `${dayjs(pickedDate).format('YYYY-MM-DD')}T00:00:00Z`;
+
+    const payload = {
+      title: form.title,
+      amount: Number(form.amount),
+      categoryId: Number(form.categoryId),
+      expenseDate: expenseDateUtcMidnight,
+    };
+
     try {
-      await axios.post('http://localhost:5202/api/expenses/submit', payload, {
-        headers: { Authorization: `Bearer ${token}` }
+      await axios.post('/api/expenses/submit', payload, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
       });
+
       alert('Expense submitted successfully');
-      setFormData({ title: '', amount: '', categoryId: '', expenseDate: '' });
-      setSelectedDate('');
-      fetchExpenses();
-      fetchEmployeeNotifications();
+      setForm({ title: '', amount: '', categoryId: '', expenseDate: '' });
+      setPickedDate(null);
+      loadMy();
+      loadNotifs();
     } catch (err) {
-      alert('Failed to submit expense');
-      console.error(err);
+      // Show the actual server response for easier debugging
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        (typeof err?.response?.data === 'string' ? err.response.data : '') ||
+        'Failed to submit expense.';
+      console.error('POST /api/expenses/submit failed:', err?.response || err);
+      alert(msg);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    window.location.href = '/login';
-  };
-
-  const getStatusClass = (status) => {
-    switch (status) {
-      case 'Approved': return 'status approved';
-      case 'Pending': return 'status pending';
-      case 'Rejected': return 'status rejected';
-      default: return 'status';
-    }
-  };
-
-  const showMore = () => setVisible((v) => Math.min(v + PAGE, expenses.length));
-
-  const renderReimb = (exp) => {
-    const status = String(exp.status ?? '').toLowerCase();
-    const m = reimbMap[exp.expenseId];
+  // --- Reimbursement cell ---
+  const reimbCell = (row) => {
+    const m = reimbMap[row.expenseId];
     if (m?.paidDateUtc) {
-      const dd = new Date(m.paidDateUtc);
-      const s = `${String(dd.getDate()).padStart(2, '0')}/${String(dd.getMonth() + 1).padStart(2, '0')}/${dd.getFullYear()}`;
-      return <span className="badge badge--ok">Paid&nbsp;({s})</span>;
+      const s = dayjs(m.paidDateUtc).format('DD/MM/YYYY');
+      return <span style={{ color: '#2e7d32', fontWeight: 600 }}>Paid ({s})</span>;
     }
-    if (status === 'approved') return <span className="badge badge--warn">Pending</span>;
+    if ((row.status || '').toLowerCase() === 'approved') {
+      return <span style={{ color: '#ed6c02', fontWeight: 600 }}>Pending</span>;
+    }
     return '—';
   };
 
-  // helper for dd/MM/yyyy HH:mm
-  const fmtDateTime = (d) => {
-    if (!d) return '';
-    const dt = new Date(d);
-    const dd = String(dt.getDate()).padStart(2, '0');
-    const mm = String(dt.getMonth() + 1).padStart(2, '0');
-    const yy = dt.getFullYear();
-    const hh = String(dt.getHours()).padStart(2, '0');
-    const mi = String(dt.getMinutes()).padStart(2, '0');
-    return `${dd}/${mm}/${yy} ${hh}:${mi}`;
+  // --- DataGrid columns (render from params.row) ---
+  const columns = [
+    { field: 'title', headerName: 'Title', flex: 1, minWidth: 160 },
+    {
+      field: 'amount', headerName: 'Amount (₹)', width: 140,
+      renderCell: (p) =>
+        `₹${Number(p?.row?.amount ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    },
+    { field: 'categoryName', headerName: 'Category', width: 160 },
+    {
+      field: 'status', headerName: 'Status', width: 120,
+      renderCell: (params) => {
+        const status = params?.row?.status;
+        const color = status === 'Approved' ? '#2e7d32' : status === 'Rejected' ? '#d32f2f' : '#6b7280';
+        return <span style={{ color, fontWeight: 600 }}>{status ?? '—'}</span>;
+      },
+    },
+    {
+      field: 'expenseDate', headerName: 'Expense Date', width: 160,
+      renderCell: (p) => {
+        const v = p?.row?.expenseDate;
+        return v ? dayjs(v).format('DD/MM/YYYY') : '—';
+      }
+    },
+    { field: 'managerComment', headerName: 'Manager Comment', flex: 1, minWidth: 160 },
+    {
+      field: 'reimb', headerName: 'Reimbursement', width: 160,
+      renderCell: (params) => (params?.row ? reimbCell(params.row) : null),
+      sortable: false,
+    },
+  ];
+
+  // --- Bell scroll to notifications ---
+  const notifCount = notifications.length;
+  const scrollToNotif = () => {
+    notifRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    notifRef.current?.classList.add('flash-highlight');
+    setTimeout(() => notifRef.current?.classList.remove('flash-highlight'), 1500);
   };
 
   return (
-    <div className="dashboard">
-      {/* Header */}
-      <div className="header">
-        <h2>
-          Expense Tracker <span>Welcome, {'Employee'}</span>
-        </h2>
-        <div className="header-actions">
-          <div className="notification-bell" title="Notifications">
-            <FaBell size={20} />
-            {notifications.length > 0 && (
-              <span className="notif-count">{notifications.length}</span>
-            )}
-          </div>
-          <button className="logout-btn" onClick={handleLogout} title="Logout">
-            <FaSignOutAlt size={16} />
-          </button>
-        </div>
-      </div>
+    <>
+      {/* AppBar */}
+      <AppBar position="static" color="primary">
+        <Toolbar>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>Welcome Employee</Typography>
+          <IconButton color="inherit" title="Notifications" onClick={scrollToNotif}>
+            <Badge badgeContent={notifCount} color="error">
+              <NotificationsNoneIcon />
+            </Badge>
+          </IconButton>
+          <Logout />
+        </Toolbar>
+      </AppBar>
 
-      <div className="dashboard-content">
-        <div className="main-section">
-          {/* Expense Submission Card */}
-          <div className="card expense-card">
-            <h3><FaMoneyBillWave /> Submit New Expense</h3>
-            <p>Fill out the form below to submit an expense for approval</p>
-            <form onSubmit={handleSubmit}>
-              <input type="text" name="title" placeholder="Expense Title" value={formData.title} onChange={handleChange} required />
-              <input type="number" name="amount" placeholder="Amount" value={formData.amount} onChange={handleChange} required />
-              <select name="categoryId" value={formData.categoryId} onChange={handleChange} required>
-                <option value="">Select Category</option>
+      <Container maxWidth="lg" sx={{ py: 3 }}>
+        {/* Submit Card */}
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6" fontWeight={700}>Submit New Expense</Typography>
+            <Button onClick={handleSubmit} type="submit" form="submit-expense-form">Submit Expense</Button>
+          </Stack>
+
+          <Box component="form" id="submit-expense-form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+            <Stack spacing={2} direction={{ xs: 'column', md: 'row' }}>
+              <TextField
+                label="Expense Title" name="title" value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })} required fullWidth
+              />
+              <TextField
+                label="Amount" name="amount" type="number" value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                required fullWidth inputProps={{ min: 0, step: 0.01 }}
+              />
+              <TextField
+                select label="Category" name="categoryId" value={form.categoryId}
+                onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+                required fullWidth
+              >
+                <MenuItem value="">Select Category</MenuItem>
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
                 ))}
-              </select>
-              <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} required />
-              <button type="submit">Submit Expense</button>
-            </form>
-          </div>
+              </TextField>
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="Expense Date" value={pickedDate}
+                  onChange={(d) => setPickedDate(d)}
+                  slotProps={{ textField: { fullWidth: true, required: true } }}
+                />
+              </LocalizationProvider>
+            </Stack>
+          </Box>
+        </Paper>
 
-          {/* My Expenses Table */}
-          <div className="card expenses-section">
-            <h3>My Expenses</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Amount</th>
-                  <th>Category</th>
-                  <th>Status</th>
-                  <th>Expense Date</th>
-                  <th>Manager Comment</th>
-                  <th>Reimbursement</th> {/* NEW */}
-                </tr>
-              </thead>
-              <tbody>
-                {expenses.slice(0, visible).map((exp, index) => (
-                  <tr key={index}>
-                    <td>{exp.title}</td>
-                    <td>₹{Number(exp.amount ?? 0).toFixed(2)}</td>
-                    <td>{exp.categoryName ?? (categories.find((c) => c.id === exp.categoryId)?.name ?? 'Unknown')}</td>
-                    <td><span className={getStatusClass(exp.status)}>{exp.status}</span></td>
-                    <td>{new Date(exp.expenseDate).toLocaleDateString()}</td>
-                    <td>{exp.managerComment ?? '-'}</td>
-                    <td>{renderReimb(exp)}</td>
-                  </tr>
-                ))}
-                {expenses.length === 0 && (
-                  <tr>
-                    <td colSpan={7} style={{ color: '#888', padding: 12 }} className="t-center">
-                      No expenses yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
-            {visible < expenses.length && (
-              <div className="t-center" style={{ marginTop: 8 }}>
-                <button className="btn-pill" onClick={() => setVisible((v) => Math.min(v + PAGE, expenses.length))}>
-                  See more
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* My Expenses */}
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Typography variant="h6" fontWeight={700}>My Expenses</Typography>
+          <Box sx={{ width: '100%', height: 520, overflowX: 'auto', mt: 1 }}>
+            <DataGrid
+              rows={rows}
+              columns={columns}
+              getRowId={(r) => r.expenseId}
+              pageSizeOptions={[10, 25, 50]}
+              initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+              disableColumnMenu
+            />
+          </Box>
+        </Paper>
 
         {/* Notifications */}
-        <div className="notifications-section card">
-          <div className="notif-header">
-            <h3>Notifications</h3>
-            <button className="clear-all-btn" onClick={clearAllNotifications} title="Clear all notifications">
-              <FaTrash size={14} />
-              <span>Clear All</span>
-            </button>
-          </div>
-
-          {notifToast && <div className="notif-toast">{notifToast}</div>}
-
-          {notifications.length > 0 ? (
-            notifications.map((n, index) => {
-              const msg = String(n.message ?? '').toLowerCase();
-              const statusClass =
-                msg.includes('reject') ? 'notification-card rejected'
-                : msg.includes('approved') ? 'notification-card approved'
-                : 'notification-card';
-              return (
-                <div key={n.notificationId ?? index} className={statusClass}>
-                  {n.message}
-                  <div className="muted-time">{fmtDateTime(n.createdAt)}</div>
-                </div>
-              );
-            })
+        <Paper sx={{ p: 2 }} ref={notifRef}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6" fontWeight={700}>Notifications</Typography>
+            <Button variant="outlined" size="small" onClick={clearAllNotifications}>Clear All</Button>
+          </Stack>
+          {notifToast && <Alert sx={{ mt: 1 }} severity={notifToast.startsWith('Failed') ? 'error' : 'success'}>{notifToast}</Alert>}
+          {notifications.length === 0 ? (
+            <Typography sx={{ mt: 1 }} color="text.secondary">No new notifications</Typography>
           ) : (
-            <p>No new notifications</p>
+            <Stack spacing={1} sx={{ mt: 1 }}>
+              {notifications.map((n) => (
+                <Box key={n.notificationId} sx={{ borderBottom: '1px solid #eee', pb: 1 }}>
+                  <Typography sx={{ fontWeight: 500 }}>{n.message}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {dayjs(n.createdAt).format('DD/MM/YYYY HH:mm')}
+                  </Typography>
+                </Box>
+              ))}
+            </Stack>
           )}
-        </div>
-      </div>
-    </div>
+        </Paper>
+      </Container>
+
+      {/* flash highlight style */}
+      <style>{`.flash-highlight { box-shadow: 0 0 0 3px rgba(91,141,239,.35); border-radius: 12px; }`}</style>
+    </>
   );
 }
-export default EmployeeDashboard;

@@ -79,6 +79,10 @@ builder.Services.AddAuthorization(opt =>
 {
     opt.AddPolicy("RequireManager", p => p.RequireRole("Manager", "Admin"));
     opt.AddPolicy("RequireAdmin", p => p.RequireRole("Admin"));
+
+  
+        
+
 });
 // Services DI registration
 builder.Services.AddScoped<ExpenseTrackerAPI.Services.Contracts.ICategoryService, ExpenseTrackerAPI.Services.CategoryService>();
