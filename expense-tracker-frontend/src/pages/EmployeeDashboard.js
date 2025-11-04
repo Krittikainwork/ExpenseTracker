@@ -13,6 +13,11 @@ import { LocalizationProvider } from '@mui/x-date-pickers';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 
+// NEW: charts imports
+import EmployeeMonthlyTrend from '../components/charts/EmployeeMonthlyTrend';
+import EmployeeCategoryBreakdown from '../components/charts/EmployeeCategoryBreakdown';
+import EmployeeStatusDistribution from '../components/charts/EmployeeStatusDistribution';
+
 // Submission form categories (unchanged)
 const categories = [
   { id: 1, name: 'Travel' },
@@ -32,19 +37,25 @@ export default function EmployeeDashboard() {
   const notifRef = useRef(null);
   const token = localStorage.getItem('token');
 
-  // --- Load "My Expenses" (bind exact backend keys) ---
+  // NEW: Section refs for quick navigation
+  const submitRef = useRef(null);
+  const myRef = useRef(null);
+  const insightsRef = useRef(null);
+
+  const scrollTo = (ref) => ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // --- Load "My Expenses" ---
   const loadMy = async () => {
     try {
       const res = await axios.get('/api/expenses/my', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = Array.isArray(res.data) ? res.data : [];
-      // Latest first by dateSubmitted (fallback expenseDate), then expenseId
       const sorted = [...data].sort((a, b) => {
         const ad = a?.dateSubmitted ? Date.parse(a.dateSubmitted)
-                  : (a?.expenseDate ? Date.parse(a.expenseDate) : -Infinity);
+          : (a?.expenseDate ? Date.parse(a.expenseDate) : -Infinity);
         const bd = b?.dateSubmitted ? Date.parse(b.dateSubmitted)
-                  : (b?.expenseDate ? Date.parse(b.expenseDate) : -Infinity);
+          : (b?.expenseDate ? Date.parse(b.expenseDate) : -Infinity);
         if (bd !== ad) return bd - ad;
         return (b?.expenseId ?? 0) - (a?.expenseId ?? 0);
       });
@@ -55,7 +66,7 @@ export default function EmployeeDashboard() {
     }
   };
 
-  // --- Load reimbursement map (kept) ---
+  // --- Load reimbursement map ---
   const loadReimb = async () => {
     try {
       const res = await axios.get('/api/reimbursements/status/my', {
@@ -106,39 +117,31 @@ export default function EmployeeDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Submit new expense (endpoint unchanged) ---
+  // --- Submit new expense ---
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!form.title || !form.amount || !form.categoryId || !pickedDate) {
       alert('Please fill Title, Amount, Category, and Expense Date.');
       return;
     }
-
-    // ✅ Send UTC at midnight to satisfy timestamptz and keep date the same
-    // Example: "2025-11-02T00:00:00Z"
     const expenseDateUtcMidnight =
       `${dayjs(pickedDate).format('YYYY-MM-DD')}T00:00:00Z`;
-
     const payload = {
       title: form.title,
       amount: Number(form.amount),
       categoryId: Number(form.categoryId),
       expenseDate: expenseDateUtcMidnight,
     };
-
     try {
       await axios.post('/api/expenses/submit', payload, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
       });
-
       alert('Expense submitted successfully');
       setForm({ title: '', amount: '', categoryId: '', expenseDate: '' });
       setPickedDate(null);
       loadMy();
       loadNotifs();
     } catch (err) {
-      // Show the actual server response for easier debugging
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||
@@ -162,7 +165,7 @@ export default function EmployeeDashboard() {
     return '—';
   };
 
-  // --- DataGrid columns (render from params.row) ---
+  // --- DataGrid columns ---
   const columns = [
     { field: 'title', headerName: 'Title', flex: 1, minWidth: 160 },
     {
@@ -208,6 +211,18 @@ export default function EmployeeDashboard() {
       <AppBar position="static" color="primary">
         <Toolbar>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>Welcome Employee</Typography>
+
+          {/* NEW: quick nav buttons on the blue bar */}
+      
+          {/* NEW: quick nav buttons on the blue bar */}
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mx: 2 }}>
+            <Button color="inherit" size="small" sx={{ color: 'rgba(31, 2, 2, 0.95)', fontWeight: 600, textTransform: 'none' }} onClick={() => scrollTo(submitRef)}>Submit</Button>
+            <Button color="inherit" size="small" sx={{ color: 'rgba(22, 21, 21, 0.95)', fontWeight: 600, textTransform: 'none' }} onClick={() => scrollTo(myRef)}>My Expenses</Button>
+            <Button color="inherit" size="small" sx={{ color: 'rgba(19, 17, 17, 0.95)', fontWeight: 600, textTransform: 'none' }} onClick={() => scrollTo(insightsRef)}>Insights</Button>
+
+          </Box>
+
+
           <IconButton color="inherit" title="Notifications" onClick={scrollToNotif}>
             <Badge badgeContent={notifCount} color="error">
               <NotificationsNoneIcon />
@@ -219,12 +234,11 @@ export default function EmployeeDashboard() {
 
       <Container maxWidth="lg" sx={{ py: 3 }}>
         {/* Submit Card */}
-        <Paper sx={{ p: 2, mb: 2 }}>
+        <Paper sx={{ p: 2, mb: 3 }} ref={submitRef}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography variant="h6" fontWeight={700}>Submit New Expense</Typography>
             <Button onClick={handleSubmit} type="submit" form="submit-expense-form">Submit Expense</Button>
           </Stack>
-
           <Box component="form" id="submit-expense-form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
             <Stack spacing={2} direction={{ xs: 'column', md: 'row' }}>
               <TextField
@@ -258,7 +272,7 @@ export default function EmployeeDashboard() {
         </Paper>
 
         {/* My Expenses */}
-        <Paper sx={{ p: 2, mb: 2 }}>
+        <Paper sx={{ p: 2, mb: 3 }} ref={myRef}>
           <Typography variant="h6" fontWeight={700}>My Expenses</Typography>
           <Box sx={{ width: '100%', height: 520, overflowX: 'auto', mt: 1 }}>
             <DataGrid
@@ -270,6 +284,22 @@ export default function EmployeeDashboard() {
               disableColumnMenu
             />
           </Box>
+        </Paper>
+
+        {/* NEW: Employee Charts Section (stacked to avoid overlap) */}
+        <Paper sx={{ p: 2, mb: 3 }} ref={insightsRef}>
+          <Typography variant="h6" fontWeight={700} mb={1}>Insights</Typography>
+          <Stack spacing={2}>
+            <Box sx={{ p: 1, borderRadius: 1, bgcolor: 'background.paper' }}>
+              <EmployeeMonthlyTrend />
+            </Box>
+            <Box sx={{ p: 1, borderRadius: 1, bgcolor: 'background.paper' }}>
+              <EmployeeCategoryBreakdown />
+            </Box>
+            <Box sx={{ p: 1, borderRadius: 1, bgcolor: 'background.paper' }}>
+              <EmployeeStatusDistribution />
+            </Box>
+          </Stack>
         </Paper>
 
         {/* Notifications */}

@@ -14,6 +14,10 @@ import BudgetOverview from '../components/BudgetOverview';
 import BudgetHistory from '../components/BudgetHistory';
 import ProcessedHistory from '../components/ProcessedHistory';
 
+// charts imports (unchanged from previous update)
+import BudgetVsExpenses from '../components/charts/BudgetVsExpenses';
+import PendingByCategory from '../components/charts/PendingByCategory';
+
 export default function ManagerDashboard() {
   const today = new Date();
   const [month, setMonth] = useState(today.getMonth() + 1);
@@ -22,7 +26,17 @@ export default function ManagerDashboard() {
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [notifCount, setNotifCount] = useState(0);
   const [toast, setToast] = useState('');
+
+  // NEW: refs for quick nav
+  const pendingRef = useRef(null);
+  const budgetSectionRef = useRef(null);
+  const budgetOverviewAnchorRef = useRef(null);
+  const processedRef = useRef(null);
+  const chartsBudgetRef = useRef(null);
+  const chartsPendingRef = useRef(null);
   const notifRef = useRef(null);
+
+  const scrollTo = (ref) => ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   useEffect(() => {
     let alive = true;
@@ -49,11 +63,37 @@ export default function ManagerDashboard() {
     setTimeout(() => notifRef.current?.classList.remove('flash-highlight'), 1500);
   };
 
+  // Ensure correct view before scrolling
+  const goToOverviewSection = () => {
+    if (showHistory) setShowHistory(false);
+    // scroll to the BudgetOverview anchor inside the card
+    setTimeout(() => scrollTo(budgetOverviewAnchorRef), 50);
+  };
+  const goToHistorySection = () => {
+    if (!showHistory) setShowHistory(true);
+    // scroll to the whole budget section card (history lives there)
+    setTimeout(() => scrollTo(budgetSectionRef), 50);
+  };
+
   return (
     <>
       <AppBar position="static" color="primary">
         <Toolbar>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>Welcome Manager</Typography>
+
+          {/* NEW: quick nav buttons on AppBar */}
+       
+          {/* NEW: quick nav buttons on AppBar */}
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mx: 2 }}>
+            <Button color="inherit" size="small" sx={{ color: 'rgba(18, 17, 17, 0.95)', fontWeight: 600, textTransform: 'none' }} onClick={() => scrollTo(pendingRef)}>Pending Requests</Button>
+            <Button color="inherit" size="small" sx={{ color: 'rgba(21, 20, 20, 0.95)', fontWeight: 600, textTransform: 'none' }} onClick={() => scrollTo(budgetSectionRef)}>Set Budget & Overview</Button>
+            <Button color="inherit" size="small" sx={{ color: 'rgba(15, 13, 13, 0.95)', fontWeight: 600, textTransform: 'none' }} onClick={goToOverviewSection}>Live Budget Overview</Button>
+            <Button color="inherit" size="small" sx={{ color: 'rgba(20, 18, 18, 0.95)', fontWeight: 600, textTransform: 'none' }} onClick={goToHistorySection}>Budget History</Button>
+            <Button color="inherit" size="small" sx={{ color: 'rgba(14, 13, 13, 0.95)', fontWeight: 600, textTransform: 'none' }} onClick={() => scrollTo(processedRef)}>Processed History</Button>
+
+          </Box>
+
+
           <IconButton color="inherit" title="Notifications" onClick={scrollToNotif}>
             <Badge badgeContent={notifCount} color="error"><NotificationsNoneIcon /></Badge>
           </IconButton>
@@ -77,12 +117,12 @@ export default function ManagerDashboard() {
 
         <Grid container spacing={3}>
           <Grid item xs={12} md={8} lg={9}>
-            <Paper sx={{ p: 2, mb: 3 }}>
+            <Paper sx={{ p: 2, mb: 3 }} ref={pendingRef}>
               <Typography variant="h6" fontWeight={700} mb={1}>Pending Expense Requests</Typography>
               <PendingRequests />
             </Paper>
 
-            <Paper sx={{ p: 2, mb: 3 }}>
+            <Paper sx={{ p: 2, mb: 3 }} ref={budgetSectionRef}>
               {/* Show title only for overview; BudgetHistory renders its own heading */}
               {!showHistory && (
                 <Typography variant="h6" fontWeight={700} mb={1}>
@@ -95,22 +135,36 @@ export default function ManagerDashboard() {
                   <Box sx={{ mb: 2 }}>
                     <BudgetForm month={month} year={year} onBudgetSet={onBudgetSet} roles={['Manager']} />
                   </Box>
-                  <BudgetOverview
-                    month={month}
-                    year={year}
-                    refreshSignal={refreshSignal}
-                    onNavigateToHistory={() => setShowHistory(true)}
-                    roles={['Manager', 'Admin']}
-                  />
+                  {/* Anchor inside the card to jump directly to the overview table */}
+                  <Box ref={budgetOverviewAnchorRef}>
+                    <BudgetOverview
+                      month={month}
+                      year={year}
+                      refreshSignal={refreshSignal}
+                      onNavigateToHistory={() => setShowHistory(true)}
+                      roles={['Manager', 'Admin']}
+                    />
+                  </Box>
                 </>
               ) : (
                 <BudgetHistory month={month} year={year} onBack={() => setShowHistory(false)} />
               )}
             </Paper>
 
-            <Paper sx={{ p: 2 }}>
+            <Paper sx={{ p: 2 }} ref={processedRef}>
               <Typography variant="h6" fontWeight={700} mb={1}>Processed Expense History</Typography>
               <ProcessedHistory />
+            </Paper>
+
+            {/* Charts */}
+            <Paper sx={{ p: 2, mt: 3, mb: 3 }} ref={chartsBudgetRef}>
+              <Typography variant="h6" fontWeight={700} mb={1}>Charts — Budget vs Actual</Typography>
+              <BudgetVsExpenses month={month} year={year} />
+            </Paper>
+
+            <Paper sx={{ p: 2, mb: 3 }} ref={chartsPendingRef}>
+              <Typography variant="h6" fontWeight={700} mb={1}>Charts — Pending by Category</Typography>
+              <PendingByCategory />
             </Paper>
           </Grid>
 

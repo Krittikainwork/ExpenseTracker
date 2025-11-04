@@ -1,26 +1,60 @@
+// ...existing code...
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { Paper, Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Stack } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 
-function MarkPaidDialog({ open, onClose, onSave }) {
+// ...existing code...
+// simple helper to pick a color for status strings
+const statusColor = (s) => {
+  const st = String(s ?? '').toLowerCase();
+  if (st === 'approved' || st === 'paid' || st === 'reimbursed' || st === 'completed') return '#2e7d32'; // green
+  if (st === 'pending') return '#f57c00'; // orange
+  if (st === 'rejected' || st === 'denied') return '#d32f2f'; // red
+  return '#616161'; // neutral grey
+};
+
+function MarkPaidDialog({ open, onClose, onSave, expectedAmount }) {
   const [ref, setRef] = useState('');
   const [amt, setAmt] = useState('');
   useEffect(() => { if (!open) { setRef(''); setAmt(''); } }, [open]);
-  const canConfirm = ref.trim().length > 0 && Number(amt) > 0;
+
+  // Normalize amounts to 2 decimal places for exact comparison
+  const parseTwo = (v) => {
+    const n = Number(v);
+    if (Number.isNaN(n)) return NaN;
+    return Number(n.toFixed(2));
+  };
+  const entered = parseTwo(amt);
+  const expected = parseTwo(expectedAmount);
+  const amountMatches = !Number.isNaN(entered) && !Number.isNaN(expected) && entered === expected;
+
+  const showAmountError = amt !== '' && !Number.isNaN(parseFloat(amt)) && !amountMatches;
+
+  const canConfirm = ref.trim().length > 0 && amountMatches;
+
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>Mark as Reimbursed</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField label="Transaction ID (UTR)" value={ref} onChange={(e) => setRef(e.target.value)} fullWidth />
-          <TextField label="Amount" value={amt} onChange={(e) => setAmt(e.target.value)} type="number" inputProps={{ min: 0.01, step: 0.01 }} fullWidth />
+          <TextField
+            label={`Amount (must equal ₹${Number(expectedAmount ?? 0).toFixed(2)})`}
+            value={amt}
+            onChange={(e) => setAmt(e.target.value)}
+            type="number"
+            inputProps={{ min: 0.01, step: 0.01 }}
+            fullWidth
+            error={showAmountError}
+            helperText={showAmountError ? `Amount must be exactly ₹${Number(expectedAmount ?? 0).toFixed(2)}` : ''}
+          />
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color="inherit">Cancel</Button>
-        <Button disabled={!canConfirm} onClick={() => onSave({ reference: ref.trim(), amount: Number(amt) })}>
+        <Button disabled={!canConfirm} onClick={() => onSave({ reference: ref.trim(), amount: Number(entered) })}>
           Confirm
         </Button>
       </DialogActions>
@@ -28,13 +62,17 @@ function MarkPaidDialog({ open, onClose, onSave }) {
   );
 }
 
+// ...existing code...
+
 export default function AdminReimbursementPending({ month, year }) {
+  // ...existing code...
   const PAGE = 10;
   const [processed, setProcessed] = useState([]);
   const [map, setMap] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(null); // {expenseId}
 
+  // ...existing code...
   const load = async () => {
     setLoading(true);
     try {
@@ -48,6 +86,7 @@ export default function AdminReimbursementPending({ month, year }) {
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [month, year]);
 
+  // ...existing code...
   const mapById = useMemo(() => {
     const d = {}; map.forEach((x) => { d[x.expenseId] = x; }); return d;
   }, [map]);
@@ -65,13 +104,10 @@ export default function AdminReimbursementPending({ month, year }) {
     catch {}
   };
 
-  const statusColor = (s) => {
-    const v = String(s || '').toLowerCase();
-    if (v === 'approved') return '#2e7d32';      // green
-    if (v === 'rejected') return '#d32f2f';      // red
-    if (v === 'pending')  return '#ed6c02';      // orange
-    return 'inherit';
-  };
+  // ...existing code...
+
+  // find selected expense to pass expected amount into dialog
+  const selectedExpense = modal ? pendingRows.find(p => p.expenseId === modal.expenseId) : null;
 
   const columns = [
     { field: 'employeeName', headerName: 'Employee', flex: 1, minWidth: 160 },
@@ -119,8 +155,13 @@ export default function AdminReimbursementPending({ month, year }) {
           disableColumnMenu
         />
       </Box>
-      <MarkPaidDialog open={!!modal} onClose={() => setModal(null)}
-        onSave={(payload) => modal && markPaid(modal.expenseId, payload)} />
+      <MarkPaidDialog
+        open={!!modal}
+        onClose={() => setModal(null)}
+        expectedAmount={selectedExpense?.amount}
+        onSave={(payload) => modal && markPaid(modal.expenseId, payload)}
+      />
     </Paper>
   );
 }
+// ...existing code...
