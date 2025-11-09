@@ -29,12 +29,12 @@ namespace ExpenseTrackerAPI.Models
 
         // ✅ NEW FIELDS
         [Required]
-        public string CreatedByManagerId { get; set; }
+        public string? CreatedByManagerId { get; set; }
 
         [Required]
-        public string CreatedByManagerName { get; set; }
+        public string? CreatedByManagerName { get; set; }
 
         // Navigation
-        public Category Category { get; set; }
+        public Category? Category { get; set; }
     }
 }
