@@ -30,16 +30,6 @@ namespace ExpenseTrackerAPI.Controllers
             return Ok(items);
         }
 
-        [HttpPut("read/{id:int}")]
-        [Authorize]
-        public async Task<IActionResult> MarkRead(int id, CancellationToken ct)
-        {
-            var userId = _userManager.GetUserId(User);
-            var ok = await _svc.MarkReadAsync(userId!, id, ct);
-            if (!ok) return NotFound();
-            return Ok();
-        }
-
         [HttpPost("clear")]
         [Authorize]
         public async Task<IActionResult> ClearAll(CancellationToken ct)

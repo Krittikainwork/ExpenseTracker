@@ -34,29 +34,12 @@ namespace ExpenseTrackerAPI.Controllers
       return Ok();
     }
 
-    [HttpGet("history")]
-    [Authorize(Policy = "RequireManager")]
-    public async Task<IActionResult> History([FromQuery] int? year, CancellationToken ct)
-    {
-      var y = year ?? System.DateTime.UtcNow.Year;
-      var grouped = await _svc.HistoryAsync(y, ct);
-      return Ok(grouped);
-    }
-
-    [HttpGet("history-detail")]
+    [HttpGet("history-detail")] 
     [Authorize(Policy = "RequireManager")]
     public async Task<IActionResult> HistoryDetail([FromQuery] int month, [FromQuery] int year, CancellationToken ct)
     {
       var result = await _svc.HistoryDetailAsync(month, year, ct);
       return Ok(result);
-    }
-
-    [HttpGet("window")]
-    [Authorize(Policy = "RequireManager")]
-    public IActionResult Window([FromQuery] int month, [FromQuery] int year)
-    {
-      var open = _svc.IsSetWindowOpen(month, year);
-      return Ok(new { month, year, isSetWindowOpen = open });
     }
 
     [HttpGet("overview")]
@@ -65,14 +48,6 @@ namespace ExpenseTrackerAPI.Controllers
     {
       var rows = await _svc.ManagerOverviewAsync(month, year, ct);
       return Ok(rows);
-    }
-
-    [HttpGet("overview-admin")]
-    [Authorize(Policy = "RequireAdmin")]
-    public async Task<IActionResult> AdminOverview([FromQuery] int month, [FromQuery] int year, CancellationToken ct)
-    {
-      var data = await _svc.AdminOverviewAsync(month, year, ct);
-      return Ok(data);
     }
 
     [HttpPost("clear-one")]

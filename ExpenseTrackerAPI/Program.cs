@@ -6,6 +6,9 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
 using ExpenseTrackerAPI.Services;
+using ExpenseTrackerAPI.Infrastructure; 
+using ExpenseTrackerAPI.Services.Contracts; // <-- added for IAuthService
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -36,24 +39,19 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
-       
         IssuerSigningKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
-
     };
 });
+
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddCors();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-
-
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "ExpenseTracker API", Version = "v1" });
-
-    // 🔒 Add JWT Bearer definition so the "Authorize" button appears
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme.\n\n" +
@@ -64,18 +62,12 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "bearer",
         BearerFormat = "JWT"
     });
-
-    // 🔒 Require Bearer auth by default (for endpoints decorated with [Authorize])
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
             },
             Array.Empty<string>()
         }
@@ -86,11 +78,8 @@ builder.Services.AddAuthorization(opt =>
 {
     opt.AddPolicy("RequireManager", p => p.RequireRole("Manager", "Admin"));
     opt.AddPolicy("RequireAdmin", p => p.RequireRole("Admin"));
-
-  
-        
-
 });
+
 // Services DI registration
 builder.Services.AddScoped<ExpenseTrackerAPI.Services.Contracts.ICategoryService, ExpenseTrackerAPI.Services.CategoryService>();
 builder.Services.AddScoped<ExpenseTrackerAPI.Services.Contracts.IExpensesService, ExpenseTrackerAPI.Services.ExpensesService>();
@@ -100,6 +89,9 @@ builder.Services.AddScoped<ExpenseTrackerAPI.Services.Contracts.IBudgetService, 
 
 // Existing notification producer (keep as you already had)
 builder.Services.AddScoped<ExpenseTrackerAPI.Services.NotificationService>();
+
+// ✅ New DI: Auth service
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 var app = builder.Build();
 
@@ -114,40 +106,40 @@ using (var scope = app.Services.CreateScope())
     foreach (var r in roles)
         if (!await roleMgr.RoleExistsAsync(r))
             await roleMgr.CreateAsync(new IdentityRole(r));
-// Admin
-var adminEmail = "admin@org.com";
-var admin = await userMgr.FindByEmailAsync(adminEmail);
-if (admin == null)
-{
-    admin = new ApplicationUser
-    {
-        UserName = adminEmail,
-        Email = adminEmail,
-        FullName = "Admin",
-        Role = "Admin",
-        EmployeeId = "ADMIN"          // <-- ADD THIS
-    };
-    await userMgr.CreateAsync(admin, "Admin@12345");
-    await userMgr.AddToRoleAsync(admin, "Admin");
-}
 
-// Manager
-var mgrEmail = "manager@org.com";
-var manager = await userMgr.FindByEmailAsync(mgrEmail);
-if (manager == null)
-{
-    manager = new ApplicationUser
+    // Admin
+    var adminEmail = "admin@org.com";
+    var admin = await userMgr.FindByEmailAsync(adminEmail);
+    if (admin == null)
     {
-        UserName = mgrEmail,
-        Email = mgrEmail,
-        FullName = "Manager",
-        Role = "Manager",
-        EmployeeId = "MGR-0001"       // <-- ADD THIS
-    };
-    await userMgr.CreateAsync(manager, "Manager@12345");
-    await userMgr.AddToRoleAsync(manager, "Manager");
-}
+        admin = new ApplicationUser
+        {
+            UserName = adminEmail,
+            Email = adminEmail,
+            FullName = "Admin",
+            Role = "Admin",
+            EmployeeId = "ADMIN"          // <-- ADD THIS
+        };
+        await userMgr.CreateAsync(admin, "Admin@12345");
+        await userMgr.AddToRoleAsync(admin, "Admin");
+    }
 
+    // Manager
+    var mgrEmail = "manager@org.com";
+    var manager = await userMgr.FindByEmailAsync(mgrEmail);
+    if (manager == null)
+    {
+        manager = new ApplicationUser
+        {
+            UserName = mgrEmail,
+            Email = mgrEmail,
+            FullName = "Manager",
+            Role = "Manager",
+            EmployeeId = "MGR-0001"       // <-- ADD THIS
+        };
+        await userMgr.CreateAsync(manager, "Manager@12345");
+        await userMgr.AddToRoleAsync(manager, "Manager");
+    }
 
     // Seed categories (first time)
     if (!db.Categories.Any())
@@ -163,19 +155,18 @@ if (manager == null)
     }
 }
 
-
-
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-
-
 app.UseHttpsRedirection();
 app.UseCors(x => x.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
+
+//  Global exception handling (preserves current behavior)
+app.UseMiddleware<GlobalExceptionMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

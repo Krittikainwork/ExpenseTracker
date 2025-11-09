@@ -36,9 +36,16 @@ export default function ExpenseVolumeTrend({ month, year }) {
     <Box sx={{ width: '100%', height: 280 }}>
       <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>Expense Volume Trend — {month}/{year}</Typography>
       <ResponsiveContainer>
-        <LineChart data={data}>
+        <LineChart data={data} margin={{ top: 20, right: 20, bottom: 70, left: 20 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="day" />
+          <XAxis
+            dataKey="day"
+            tick={{ fontSize: 12 }}
+            tickMargin={10}
+            interval={0}
+            angle={-45}
+            textAnchor="end"
+          />
           <YAxis allowDecimals={false} />
           <Tooltip />
           <Line type="monotone" dataKey="count" stroke="#1976d2" strokeWidth={2} dot />

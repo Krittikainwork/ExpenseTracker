@@ -27,9 +27,9 @@ export default function PendingByCategory() {
     <Box sx={{ width: '100%', height: 280 }}>
       <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>Pending Requests by Category</Typography>
       <ResponsiveContainer>
-        <BarChart data={data}>
+        <BarChart data={data} margin={{ top: 20, right: 20, bottom: 70, left: 20 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" />
+          <XAxis dataKey="name" tick={{ fontSize: 12 }} tickMargin={12} interval={0} angle={-30} textAnchor="end" />
           <YAxis allowDecimals={false} />
           <Tooltip />
           <Bar dataKey="value" name="Pending" fill="#ffb74d" />

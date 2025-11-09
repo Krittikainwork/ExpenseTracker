@@ -10,7 +10,6 @@ namespace ExpenseTrackerAPI.Services.Contracts
     public interface INotificationQueryService
     {
         Task<IReadOnlyList<NotificationDto>> GetForUserAsync(string userId, CancellationToken ct);
-        Task<bool> MarkReadAsync(string userId, int notificationId, CancellationToken ct);
         Task<int> ClearAllAsync(string userId, CancellationToken ct);
     }
 }

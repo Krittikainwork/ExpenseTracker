@@ -34,10 +34,11 @@ export default function EmployeeDashboard() {
   const [notifToast, setNotifToast] = useState('');
   const [form, setForm] = useState({ title: '', amount: '', categoryId: '', expenseDate: '' });
   const [pickedDate, setPickedDate] = useState(null);
-  const notifRef = useRef(null);
+ 
   const token = localStorage.getItem('token');
 
   // NEW: Section refs for quick navigation
+   const notifRef = useRef(null);
   const submitRef = useRef(null);
   const myRef = useRef(null);
   const insightsRef = useRef(null);

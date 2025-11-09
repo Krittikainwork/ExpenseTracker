@@ -50,12 +50,12 @@ export default function ReimbursementStatusPie({ month, year }) {
     <Box sx={{ width: '100%', height: 280 }}>
       <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>Reimbursement Status — {month}/{year}</Typography>
       <ResponsiveContainer>
-        <PieChart>
-          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}>
+        <PieChart margin={{ top: 20, right: 20, bottom: 48, left: 20 }}>
+          <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius={80} label>
             {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
           </Pie>
           <Tooltip />
-          <Legend />
+          <Legend verticalAlign="bottom" align="center" height={36} />
         </PieChart>
       </ResponsiveContainer>
     </Box>
