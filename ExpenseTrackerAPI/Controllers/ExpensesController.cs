@@ -41,16 +41,20 @@ namespace ExpenseTrackerAPI.Controllers
             return Ok(new { expenseId = id });
         }
 
-        [HttpGet("my")]
-        [Authorize(Roles = "Employee")]
-        public async Task<IActionResult> My(CancellationToken ct)
-        {
-            var user = await _userManager.GetUserAsync(User);
-            if (user is null) return Unauthorized();
+       [HttpGet("my")]
+     [Authorize(Roles = "Employee")]
+      public async Task<IActionResult> My(CancellationToken ct)
+    {
+    var user = await _userManager.GetUserAsync(User);
+    if (user is null) return Unauthorized();
 
-            var rows = await _svc.GetMyAsync(user.EmployeeId, ct);
-            return Ok(rows);
-        }
+    if (string.IsNullOrWhiteSpace(user.EmployeeId))
+        return BadRequest("EmployeeId not set for this user.");
+
+    var rows = await _svc.GetMyAsync(user.EmployeeId, ct);
+    return Ok(rows);
+}
+
 
         [HttpGet("pending")]
         [Authorize(Policy = "RequireManager")]
