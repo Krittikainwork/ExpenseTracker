@@ -12,7 +12,7 @@ using ExpenseTrackerAPI.Services.Contracts;
 var builder = WebApplication.CreateBuilder(args);
 
 
-// 🔹 Database Configuration
+
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
@@ -23,14 +23,14 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 });
 
 
-// 🔹 Identity Setup
+
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
 
-// 🔹 JWT Authentication Setup
+
 
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
@@ -61,14 +61,13 @@ builder.Services.AddAuthentication(options =>
 });
 
 
-// 🔹 CORS, Controllers, Swagger
 
 builder.Services.AddCors();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
 
-// 🔹 Swagger Configuration
+
 
 builder.Services.AddSwaggerGen(c =>
 {
@@ -79,7 +78,7 @@ builder.Services.AddSwaggerGen(c =>
         Description = "Expense tracking and reimbursement management API"
     });
 
-    // JWT Authorization in Swagger UI
+ 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: **Bearer {token}**",
@@ -103,7 +102,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 
-// 🔹 Authorization Policies
+
 
 builder.Services.AddAuthorization(opt =>
 {
@@ -127,7 +126,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 
 var app = builder.Build();
 
-// 🔹 Seed Data (Roles, Admin, Manager, Categories)
+
 
 using (var scope = app.Services.CreateScope())
 {

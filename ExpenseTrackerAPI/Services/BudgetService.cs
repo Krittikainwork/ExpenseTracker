@@ -124,7 +124,8 @@ namespace ExpenseTrackerAPI.Services
                 var budgets = await _db.Budgets
                     .Include(b => b.Category)
                     .Where(b => b.Month == month && b.Year == year)
-                    .OrderBy(b => b.Category.Name)
+                   .OrderBy(b => b.Category != null ? b.Category.Name : "")
+
                     .ToListAsync(ct);
 
                 var budgetIds = budgets.Select(b => b.BudgetId).ToList();
@@ -137,7 +138,7 @@ namespace ExpenseTrackerAPI.Services
                 var result = budgets.Select(b => new
                 {
                     b.CategoryId,
-                    CategoryName = b.Category.Name,
+                    CategoryName = b.Category?.Name,
                     Month = b.Month,
                     Year = b.Year,
                     InitialMonthlyBudget = b.InitialAmount,
@@ -181,7 +182,7 @@ namespace ExpenseTrackerAPI.Services
                     return new
                     {
                         b.CategoryId,
-                        CategoryName = b.Category.Name,
+                        CategoryName = b.Category?.Name,
                         InitialMonthlyBudget = initial,
                         RemainingBudget = remaining,
                         ExpensesDeducted = deducted,
