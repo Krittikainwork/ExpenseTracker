@@ -2,13 +2,10 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using ExpenseTrackerAPI.Models;
 using ExpenseTrackerAPI.Services.Contracts;
-using System.Threading;
-using System.Threading.Tasks;
+
 
 namespace ExpenseTrackerAPI.Services
 {

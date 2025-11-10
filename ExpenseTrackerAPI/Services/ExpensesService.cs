@@ -1,14 +1,10 @@
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Collections.Generic;
+
 using ExpenseTrackerAPI.Data;
 using ExpenseTrackerAPI.Models;
 using ExpenseTrackerAPI.Services.Contracts;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System;
-using Microsoft.Extensions.Logging;
+
 using ExpenseTrackerAPI.Domain;
 
 namespace ExpenseTrackerAPI.Services
