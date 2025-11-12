@@ -1,11 +1,11 @@
-// ...existing code...
+
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { Paper, Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Stack } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 
-// ...existing code...
+
 // simple helper to pick a color for status strings
 const statusColor = (s) => {
   const st = String(s ?? '').toLowerCase();
@@ -62,17 +62,17 @@ function MarkPaidDialog({ open, onClose, onSave, expectedAmount }) {
   );
 }
 
-// ...existing code...
+
 
 export default function AdminReimbursementPending({ month, year }) {
-  // ...existing code...
+
   const PAGE = 10;
   const [processed, setProcessed] = useState([]);
   const [map, setMap] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(null); // {expenseId}
 
-  // ...existing code...
+
   const load = async () => {
     setLoading(true);
     try {
@@ -86,7 +86,7 @@ export default function AdminReimbursementPending({ month, year }) {
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [month, year]);
 
-  // ...existing code...
+ 
   const mapById = useMemo(() => {
     const d = {}; map.forEach((x) => { d[x.expenseId] = x; }); return d;
   }, [map]);
@@ -104,7 +104,7 @@ export default function AdminReimbursementPending({ month, year }) {
     catch {}
   };
 
-  // ...existing code...
+ 
 
   // find selected expense to pass expected amount into dialog
   const selectedExpense = modal ? pendingRows.find(p => p.expenseId === modal.expenseId) : null;
@@ -164,4 +164,3 @@ export default function AdminReimbursementPending({ month, year }) {
     </Paper>
   );
 }
-// ...existing code...

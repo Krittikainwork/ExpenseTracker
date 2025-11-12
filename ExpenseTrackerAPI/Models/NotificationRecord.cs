@@ -9,13 +9,13 @@ namespace ExpenseTrackerAPI.Models
         public int NotificationId { get; set; }  // ✅ Primary Key
 
         [Required]
-        public string RecipientId { get; set; }
+        public string RecipientId { get; set; }  = default!;
 
         [ForeignKey("RecipientId")]
-        public ApplicationUser Recipient { get; set; }
+        public ApplicationUser Recipient { get; set; }  = default!;
 
         [Required]
-        public string Message { get; set; }
+        public string Message { get; set; }  = default!;
 
         public bool IsRead { get; set; } = false;
 

@@ -13,7 +13,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 
 
-
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseNpgsql(
@@ -111,7 +110,7 @@ builder.Services.AddAuthorization(opt =>
 });
 
 
-// 🔹 Dependency Injection (Services)
+// Dependency Injection (Services)
 
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IExpensesService, ExpensesService>();
@@ -122,7 +121,7 @@ builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 
-// 🔹 Build the App
+//  Build the App
 
 var app = builder.Build();
 
@@ -191,7 +190,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// 🔹 Middleware Pipeline
+//  Middleware Pipeline
 
 if (app.Environment.IsDevelopment())
 {
